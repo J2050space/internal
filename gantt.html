@@ -5,20 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>J2050 Team Management – Gantt</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/gantt.css">
 </head>
 <body>
   <header id="app-header"></header>
-  <main id="app-main">
-    <h1>Gantt</h1>
-    <p>Page under construction.</p>
+  <main id="app-main" style="max-width:none">
+    <div class="g-top">
+      <div>
+        <h1>Project plan</h1>
+        <p class="g-sub" id="g-sub">RedPill (J2050)</p>
+      </div>
+      <ul class="stats" id="stats"></ul>
+    </div>
+    <nav class="g-nav" id="g-nav" aria-label="Views"></nav>
+    <div id="view"><p class="hint">Loading…</p></div>
   </main>
+  <div id="toast" hidden></div>
 
-  <script type="module">
-    import { initProtectedPage } from './js/auth.js';
-    const profile = await initProtectedPage('gantt');
-    if (profile) {
-      // Gantt chart will be implemented here.
-    }
-  </script>
+  <script type="module" src="js/gantt.js"></script>
 </body>
 </html>
