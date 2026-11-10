@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>J2050 Team Management – Stats</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .st-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; margin-bottom: 12px; }
+    .st-tools > div { display: grid; gap: 4px; }
+    .st-tools button { padding: 6px 10px; }
+    .st-nav { display: flex; gap: 4px; margin: 4px 0 12px; border-bottom: 1px solid var(--border); }
+    .st-nav a { padding: 8px 14px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .st-nav a[aria-current="page"] { color: var(--accent); border-color: var(--accent); }
+    .kpi { display: flex; flex-wrap: wrap; gap: 6px 24px; list-style: none; padding: 0; margin: 0 0 12px; }
+    .kpi li { display: flex; flex-direction: column; font-size: 0.75rem; color: var(--muted); }
+    .kpi b { font-size: 1.1rem; color: var(--text); font-variant-numeric: tabular-nums; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.sub td:first-child { padding-left: 24px; }
+    tr.total td { font-weight: 600; border-top: 2px solid var(--border); }
+    .bar { display: inline-block; height: 8px; background: var(--accent); border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent); font-size: 0.8125rem; }
+    .matrix td, .matrix th { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <header id="app-header"></header>
+  <main id="app-main">
+    <h1>Stats</h1>
+    <p class="hint">Hours of lab shifts already ended: participants (booked) and supervisors. Participants who did not attend shall be removed from the shift by an administrator (possible also for past shifts). Task hours are person-hours, supervision included.</p>
+    <div class="st-tools" id="tools"></div>
+    <ul class="kpi" id="kpi"></ul>
+    <nav class="st-nav" id="nav" aria-label="Views"></nav>
+    <div id="view"><p class="hint">Loading…</p></div>
+  </main>
+
+  <script type="module" src="js/stats.js"></script>
+</body>
+</html>

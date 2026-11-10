@@ -43,6 +43,10 @@ const ERRORS = {
   'Request not pending': 'The request has already been handled.',
   'Request not found or not pending': 'The request has already been handled.',
   'Requester account not active': 'The requester account is not active.',
+  'Supervisor required': 'Select the supervising admin.',
+  'Supervisor shall be an active admin': 'The supervisor shall be an active admin.',
+  'Supervisor is booked as participant': 'The selected supervisor is booked as participant: remove the booking first.',
+  'Supervisor of this shift': 'You are the supervisor of this shift: supervisors are not booked as participants.',
 };
 function errorText(error) {
   const m = error?.message ?? String(error);
@@ -60,7 +64,8 @@ const TODAY = todayIso();
 let SHIFTS = [];
 let REQUESTS = [];
 let TASKS = [];
-const ui = { week: 0, onlyFree: false, onlyMine: false };
+let ADMINS = [];   // active admins, possible supervisors
+const ui = { week: 0, onlyFree: false, onlyMine: false, showRequests: true };
 
 const firstMonday = () => iso(dn(mondayOf(TODAY)) + ui.week * 7);
 
@@ -69,9 +74,9 @@ async function load() {
   const from = firstMonday();
   const to = iso(dn(from) + 14);
   const since = new Date(Date.now() - 2 * HISTORY_DAYS * 864e5).toISOString();
-  const [s, r, t] = await Promise.all([
+  const [s, r, t, a] = await Promise.all([
     supabase.from('shifts')
-      .select('*, tasks(code, name), assignments(user_id, created_at, profiles(full_name, email))')
+      .select('*, tasks(code, name), supervisor:profiles!shifts_supervisor_id_fkey(full_name, email), assignments(user_id, created_at, profiles(full_name, email))')
       .gte('starts_at', zonedToIso(from, '00:00'))
       .lt('starts_at', zonedToIso(to, '00:00'))
       .order('starts_at'),
@@ -80,8 +85,9 @@ async function load() {
       .gte('created_at', since)
       .order('starts_at'),
     supabase.from('tasks').select('id, code, name, status, parent_id'),
+    supabase.from('profiles').select('id, full_name, email').eq('role', 'admin').eq('status', 'active'),
   ]);
-  const error = s.error || r.error || t.error;
+  const error = s.error || r.error || t.error || a.error;
   if (error) throw error;
 
   const now = new Date();
@@ -98,13 +104,28 @@ async function load() {
       endMin: end.date === start.date ? end.minutes : DAY_END + 1,
       people,
       booked: people.length,
-      mine: people.some((p) => p.id === ME),
+      supervisorName: x.supervisor ? personName(x.supervisor) : null,
+      supervising: x.supervisor_id === ME,
+      mine: people.some((p) => p.id === ME) || x.supervisor_id === ME,
       started: new Date(x.starts_at) <= now,
       full: people.length >= x.capacity,
     };
   });
-  REQUESTS = r.data;
-  TASKS = t.data.sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }));
+  REQUESTS = r.data.map((x) => {
+    const start = zonedParts(x.starts_at);
+    const end = zonedParts(x.ends_at);
+    return {
+      ...x,
+      kind: 'request',
+      date: start.date,
+      startMin: start.minutes,
+      endMin: end.date === start.date ? end.minutes : DAY_END + 1,
+      own: x.requested_by === ME,
+      started: new Date(x.starts_at) <= now,
+    };
+  });
+  TASKS = t.data.sort((x, y) => x.code.localeCompare(y.code, 'en', { numeric: true }));
+  ADMINS = a.data.map((x) => ({ id: x.id, name: personName(x) })).sort((x, y) => x.name.localeCompare(y.name));
 }
 
 async function reload(message) {
@@ -124,6 +145,7 @@ function renderTools() {
     <span class="range">${formatDate(from)} – ${formatDate(to)}</span>
     <label class="chk"><input type="checkbox" id="f-free"${ui.onlyFree ? ' checked' : ''}> Free seats only</label>
     <label class="chk"><input type="checkbox" id="f-mine"${ui.onlyMine ? ' checked' : ''}> My shifts only</label>
+    <label class="chk"><input type="checkbox" id="f-req"${ui.showRequests ? ' checked' : ''}> Show requests</label>
     <button type="button" class="secondary" data-act="reload">Reload</button>`;
   document.getElementById('s-actions').innerHTML = ADMIN
     ? '<button type="button" data-act="new-shift">New shift</button>'
@@ -137,6 +159,22 @@ function visible(s) {
   return true;
 }
 
+// Pending requests shown on the calendar (red, dashed)
+function visibleRequest(r) {
+  if (r.status !== 'pending' || !ui.showRequests || ui.onlyFree) return false;
+  if (ui.onlyMine && !r.own) return false;
+  return true;
+}
+
+function requestBlock(r, style = '') {
+  const task = r.tasks ? `<span class="c">${esc(r.tasks.code)}</span> ` : '';
+  const text = r.description.length > 60 ? `${r.description.slice(0, 60)}…` : r.description;
+  return `<button type="button" class="sblock req${r.started ? ' past' : ''}" data-request="${r.id}"${style}
+    title="${esc(`Request · ${formatTime(r.starts_at)}–${formatTime(r.ends_at)} · ${personName(r.requester)}`)}">
+    <span class="rq">Request</span> <span class="t">${formatTime(r.starts_at)}–${formatTime(r.ends_at)}</span><br>
+    <span class="n">${esc(personName(r.requester))}</span><br>${task}${esc(text)}</button>`;
+}
+
 function blockClass(s) {
   return `${s.mine ? 'mine' : s.full ? 'full' : 'free'}${s.started ? ' past' : ''}`;
 }
@@ -146,6 +184,7 @@ function blockText(s) {
   return `<span class="seats">${s.booked}/${s.capacity}</span>
     <span class="t">${formatTime(s.starts_at)}–${formatTime(s.ends_at)}</span><br>${task}
     ${s.location ? `<br><span class="n">${esc(s.location)}</span>` : ''}
+    <br><span class="n">Sup.: ${esc(s.supervisorName ?? '—')}</span>
     ${s.people.length ? `<br><span class="n">${esc(s.people.map((p) => p.name).join(', '))}</span>` : ''}`;
 }
 
@@ -182,7 +221,10 @@ function weekHtml(monday) {
     const isPast = d.date < TODAY;
     heads += `<div class="dhead${isToday ? ' today' : ''}">${d.label} ${formatDate(d.date).slice(0, 5)}</div>`;
 
-    const dayShifts = SHIFTS.filter((s) => s.date === d.date && visible(s));
+    const dayShifts = [
+      ...SHIFTS.filter((s) => s.date === d.date && visible(s)),
+      ...REQUESTS.filter((r) => r.date === d.date && visibleRequest(r)),
+    ];
     const inGrid = dayShifts.filter((s) => s.endMin > DAY_START && s.startMin < DAY_END);
     dayShifts.filter((s) => !inGrid.includes(s)).forEach((s) => outside.push(s));
 
@@ -190,6 +232,8 @@ function weekHtml(monday) {
       const top = ((Math.max(s.startMin, DAY_START) - DAY_START) / SLOT) * SLOT_PX;
       const bottom = ((Math.min(s.endMin, DAY_END) - DAY_START) / SLOT) * SLOT_PX;
       const w = 100 / s.lanes;
+      const style = ` style="top:${top + 1}px;height:${Math.max(bottom - top - 2, 18)}px;left:calc(${s.lane * w}% + 2px);width:calc(${w}% - 4px)"`;
+      if (s.kind === 'request') return requestBlock(s, style);
       return `<button type="button" class="sblock ${blockClass(s)}" data-shift="${s.id}"
         style="top:${top + 1}px;height:${Math.max(bottom - top - 2, 18)}px;left:calc(${s.lane * w}% + 2px);width:calc(${w}% - 4px)"
         title="${esc(`${formatTime(s.starts_at)}–${formatTime(s.ends_at)} ${s.tasks?.code ?? ''} ${s.booked}/${s.capacity}`)}">${blockText(s)}</button>`;
@@ -198,13 +242,14 @@ function weekHtml(monday) {
 
     list += `<div class="lday${isToday ? ' today' : ''}">${d.label} ${formatDate(d.date)}</div>` +
       (dayShifts.length
-        ? dayShifts.map((s) => `<button type="button" class="sblock ${blockClass(s)}" data-shift="${s.id}">${blockText(s)}</button>`).join('')
+        ? dayShifts.slice().sort((a, b) => a.startMin - b.startMin).map((s) => (s.kind === 'request' ? requestBlock(s)
+          : `<button type="button" class="sblock ${blockClass(s)}" data-shift="${s.id}">${blockText(s)}</button>`)).join('')
         : '<p class="none">No shift.</p>');
   });
 
   const out = outside.length
     ? `<p class="outside">Outside the 08:00–18:00 grid: ${outside.map((s) =>
-      `<a href="#" data-shift="${s.id}">${formatDateTime(s.starts_at)} ${esc(s.tasks?.code ?? '')}</a>`).join(', ')}</p>`
+      `<a href="#" ${s.kind === 'request' ? `data-request="${s.id}"` : `data-shift="${s.id}"`}>${s.kind === 'request' ? 'Request ' : ''}${formatDateTime(s.starts_at)} ${esc(s.tasks?.code ?? '')}</a>`).join(', ')}</p>`
     : '';
 
   return `<section class="week"><h2>Week ${formatDate(monday)} – ${formatDate(iso(dn(monday) + 4))}</h2>
@@ -214,7 +259,10 @@ function weekHtml(monday) {
 
 /* ---------- requests ---------- */
 function requestsHtml() {
-  const pending = REQUESTS.filter((r) => r.status === 'pending');
+  const from = firstMonday();
+  const to = iso(dn(from) + 14);
+  const pendingAll = REQUESTS.filter((r) => r.status === 'pending');
+  const pending = pendingAll.filter((r) => r.date < from || r.date >= to);
   const sinceHist = new Date(Date.now() - HISTORY_DAYS * 864e5).toISOString();
   const history = REQUESTS.filter((r) => r.status !== 'pending' && (r.decided_at ?? r.created_at) >= sinceHist)
     .sort((a, b) => ((a.decided_at ?? '') < (b.decided_at ?? '') ? 1 : -1));
@@ -238,10 +286,12 @@ function requestsHtml() {
     <td>${esc(personName(r.requester))}</td><td>${when(r)}</td><td>${task(r)}</td><td>${esc(r.description)}</td>
     <td>${esc(r.admin_note ?? '')}</td><td>${r.decided_at ? formatDate(r.decided_at) : ''}</td></tr>`).join('');
 
-  return `<h2>Shift requests (${pending.length} pending)</h2>
-    <p class="hint">Members request a shift when none is available; an administrator approves it (the shift is created and the requester booked) or rejects it.</p>
+  return `<h2>Shift requests</h2>
+    <p class="hint">${pendingAll.length} pending in total. Pending requests in the weeks shown are on the calendar (red, dashed): click one to see it${ADMIN ? ', approve or reject it' : ''}.
+    Below: pending requests outside the weeks shown, and the requests handled recently.</p>
+    <h2 style="font-size:.9rem">Pending outside the weeks shown (${pending.length})</h2>
     ${pending.length ? `<div class="table-scroll"><table><thead><tr><th>Requested by</th><th>When</th><th>Task</th><th>Work to do</th><th>Location</th><th>Requested on</th><th></th></tr></thead>
-      <tbody>${pendingRows}</tbody></table></div>` : '<p class="hint">No pending request.</p>'}
+      <tbody>${pendingRows}</tbody></table></div>` : '<p class="hint">None.</p>'}
     <details class="hist"><summary>Handled in the last ${HISTORY_DAYS} days (${history.length})</summary>
       ${history.length ? `<div class="table-scroll"><table><thead><tr><th>Outcome</th><th>Requested by</th><th>When</th><th>Task</th><th>Work to do</th><th>Admin note</th><th>Decided on</th></tr></thead>
         <tbody>${histRows}</tbody></table></div>` : '<p class="hint">None.</p>'}
@@ -278,8 +328,8 @@ function modalError(box, text) {
 function openShift(id) {
   const s = SHIFTS.find((x) => x.id === id);
   if (!s) return;
-  const canBook = !s.started && !s.mine && !s.full;
-  const canCancel = !s.started && s.mine;
+  const canBook = !s.started && !s.mine && !s.full && !s.supervising;
+  const canCancel = !s.started && s.people.some((p) => p.id === ME);
   const people = s.people.length
     ? `<ul class="people">${s.people.map((p) => `<li><span>${esc(p.name)}${p.id === ME ? ' (you)' : ''}</span>
         ${ADMIN ? `<button type="button" class="danger" data-act="remove-person" data-user="${p.id}">Remove</button>` : ''}</li>`).join('')}</ul>`
@@ -292,8 +342,9 @@ function openShift(id) {
       ${s.location ? `<dt>Location</dt><dd>${esc(s.location)}</dd>` : ''}
       ${s.description ? `<dt>Work to do</dt><dd>${esc(s.description)}</dd>` : ''}
       ${s.notes ? `<dt>Notes</dt><dd>${esc(s.notes)}</dd>` : ''}
+      <dt>Supervisor</dt><dd>${s.supervisorName ? `${esc(s.supervisorName)}${s.supervising ? ' (you)' : ''}` : '<span class="bad">not set: edit the shift</span>'}</dd>
     </dl>
-    <h2 style="font-size:.95rem">People</h2>${people}
+    <h2 style="font-size:.95rem">Participants (${s.booked}/${s.capacity}; the supervisor is not counted)</h2>${people}
     <p class="message" role="alert" hidden></p>
     <div class="buttons">
       ${ADMIN ? '<button type="button" class="danger" data-act="delete-shift">Delete shift</button>' : ''}
@@ -337,7 +388,51 @@ function openShift(id) {
   });
 }
 
+/* ---------- request details ---------- */
+function openRequest(id) {
+  const r = REQUESTS.find((x) => x.id === id);
+  if (!r) return;
+  const box = openModal(`
+    <h2>Shift request</h2>
+    <p class="meta">${DAYS[weekday(r.date)] ?? ''} ${formatDate(r.starts_at)}, ${formatTime(r.starts_at)}–${formatTime(r.ends_at)}
+      · requested by ${esc(personName(r.requester))} on ${formatDate(r.created_at)}</p>
+    <dl>
+      <dt>Work to do</dt><dd>${esc(r.description)}</dd>
+      ${r.tasks ? `<dt>Task</dt><dd>${esc(r.tasks.code)} – ${esc(r.tasks.name)}</dd>` : ''}
+      ${r.location ? `<dt>Location</dt><dd>${esc(r.location)}</dd>` : ''}
+    </dl>
+    ${r.started ? '<p class="hint">The requested start has passed: the request can only be rejected or withdrawn.</p>' : ''}
+    <p class="message" role="alert" hidden></p>
+    <div class="buttons">
+      ${ADMIN ? '<button type="button" class="danger" data-act="reject">Reject</button>' : ''}
+      ${ADMIN && !r.started ? '<button type="button" data-act="approve">Approve…</button>' : ''}
+      ${r.own ? '<button type="button" class="secondary" data-act="withdraw">Withdraw</button>' : ''}
+      <button type="button" class="secondary" data-act="close">Close</button>
+    </div>`);
+  box.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const act = b.dataset.act;
+    if (act === 'close') closeModal();
+    else if (act === 'approve') openApproveForm(r);
+    else if (act === 'reject') openRejectForm(r);
+    else if (act === 'withdraw') {
+      if (!window.confirm('Withdraw this request?')) return;
+      const { error } = await supabase.rpc('withdraw_request', { p_request_id: r.id });
+      if (error) { modalError(box, errorText(error)); return; }
+      closeModal();
+      await reload('Request withdrawn.');
+    }
+  });
+}
+
 /* ---------- forms ---------- */
+function supervisorSelect(selected) {
+  return `<label for="f-sup">Supervisor (admin, not counted in the capacity)</label><select id="f-sup" required>
+    <option value="">— select —</option>${ADMINS.map((x) =>
+    `<option value="${x.id}"${x.id === selected ? ' selected' : ''}>${esc(x.name)}${x.id === ME ? ' (you)' : ''}</option>`).join('')}</select>`;
+}
+
 function taskOptions(selected, optional) {
   return (optional ? '<option value="">— none —</option>' : '<option value="">— select —</option>') +
     TASKS.map((t) => `<option value="${t.id}"${t.id === selected ? ' selected' : ''}>${esc(t.code)} – ${esc(t.name.slice(0, 70))}${t.status === 'done' ? ' (done)' : ''}</option>`).join('');
@@ -367,14 +462,15 @@ const val = (box, id) => box.querySelector(`#${id}`).value.trim();
 function openShiftForm(s, prefill = {}) {
   const v = s
     ? { date: s.date, start: formatTime(s.starts_at), end: formatTime(s.ends_at), task: s.task_id, capacity: s.capacity,
-      location: s.location, description: s.description, notes: s.notes }
-    : { capacity: 1, ...prefill };
+      location: s.location, description: s.description, notes: s.notes, supervisor: s.supervisor_id }
+    : { capacity: 1, supervisor: ME, ...prefill };
   const box = openModal(`
     <h2>${s ? 'Edit shift' : 'New shift'}</h2>
     <form novalidate>
       ${slotFields(v)}
       <label for="f-task">Task</label><select id="f-task" required>${taskOptions(v.task, false)}</select>
-      <label for="f-cap">Capacity (people)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="${esc(v.capacity)}" required>
+      ${supervisorSelect(v.supervisor)}
+      <label for="f-cap">Capacity (participants)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="${esc(v.capacity)}" required>
       <div class="removal" id="f-removal" hidden></div>
       <label for="f-loc">Location</label><input id="f-loc" type="text" maxlength="80" value="${esc(v.location ?? '')}">
       <label for="f-desc">Work to do</label><textarea id="f-desc" maxlength="1000">${esc(v.description ?? '')}</textarea>
@@ -406,6 +502,8 @@ function openShiftForm(s, prefill = {}) {
     const slotError = slotChanged ? checkSlot(date, start, end) : null;
     if (slotError) { modalError(box, slotError); return; }
     if (!taskId) { modalError(box, 'Select a task.'); return; }
+    if (!val(box, 'f-sup')) { modalError(box, 'Select the supervising admin.'); return; }
+    if (s && s.people.some((p) => p.id === val(box, 'f-sup'))) { modalError(box, 'The selected supervisor is booked as participant: remove the booking first.'); return; }
     if (!(capacity >= 1 && capacity <= MAX_CAPACITY)) { modalError(box, `The capacity shall be between 1 and ${MAX_CAPACITY}.`); return; }
 
     const fields = {
@@ -415,6 +513,7 @@ function openShiftForm(s, prefill = {}) {
       location: val(box, 'f-loc') || null,
       description: val(box, 'f-desc') || null,
       notes: val(box, 'f-notes') || null,
+      supervisor_id: val(box, 'f-sup') || null,
     };
     const submit = box.querySelector('button[type="submit"]');
     submit.disabled = true;
@@ -487,7 +586,8 @@ function openApproveForm(r) {
     <form novalidate>
       ${slotFields(v)}
       <label for="f-task">Task</label><select id="f-task" required>${taskOptions(r.task_id, false)}</select>
-      <label for="f-cap">Capacity (1 = requester only)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="1">
+      ${supervisorSelect(ME)}
+      <label for="f-cap">Capacity (participants; 1 = requester only)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="1">
       <label for="f-loc">Location</label><input id="f-loc" type="text" maxlength="80" value="${esc(r.location ?? '')}">
       <label for="f-desc">Work to do</label><textarea id="f-desc" maxlength="1000">${esc(r.description)}</textarea>
       <label for="f-note">Note to the requester</label><input id="f-note" type="text" maxlength="300">
@@ -515,6 +615,7 @@ function openApproveForm(r) {
       p_location: val(box, 'f-loc') || null,
       p_description: val(box, 'f-desc') || null,
       p_note: val(box, 'f-note') || null,
+      p_supervisor: val(box, 'f-sup') || null,
     });
     if (error) { submit.disabled = false; modalError(box, errorText(error)); return; }
     closeModal();
@@ -545,9 +646,12 @@ function openRejectForm(r) {
 document.addEventListener('change', (e) => {
   if (e.target.id === 'f-free') { ui.onlyFree = e.target.checked; render(); }
   if (e.target.id === 'f-mine') { ui.onlyMine = e.target.checked; render(); }
+  if (e.target.id === 'f-req') { ui.showRequests = e.target.checked; render(); }
 });
 
 document.getElementById('app-main').addEventListener('click', async (e) => {
+  const reqEl = e.target.closest('[data-request]');
+  if (reqEl) { e.preventDefault(); openRequest(Number(reqEl.dataset.request)); return; }
   const shiftEl = e.target.closest('[data-shift]');
   if (shiftEl) { e.preventDefault(); openShift(Number(shiftEl.dataset.shift)); return; }
 

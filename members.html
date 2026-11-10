@@ -19,129 +19,166 @@
     import { initProtectedPage, friendlyError, showMessage } from './js/auth.js';
     import { formatDate, formatDateTime } from './js/format.js';
 
+    const TEAMS = ['SYSTEMS', 'ELECTRONICS', 'SOFTWARE', 'AOCS', 'TERMOMECH', 'TELECOM', 'OUTREACH', 'BOARD-PM'];
+    const ROLES = [['user', 'User'], ['teamleader', 'Teamleader'], ['admin', 'Admin']];
+
     const me = await initProtectedPage('members', { adminOnly: true });
     const msg = document.getElementById('members-msg');
     const container = document.getElementById('members-sections');
+    let MEMBERS = [];
+    let LEADERS = new Map();   // team -> leader id
 
     const SECTIONS = [
-      { key: 'pending',     title: 'Awaiting approval',
-        filter: (m) => m.status === 'pending' && m.email_confirmed },
-      { key: 'active',      title: 'Active members',
-        filter: (m) => m.status === 'active' },
-      { key: 'disabled',    title: 'Disabled',
-        filter: (m) => m.status === 'disabled' },
-      { key: 'unconfirmed', title: 'Email not confirmed yet',
-        filter: (m) => m.status === 'pending' && !m.email_confirmed,
+      { title: 'Awaiting approval', filter: (m) => m.status === 'pending' && m.email_confirmed },
+      { title: 'Active members', filter: (m) => m.status === 'active' },
+      { title: 'Disabled', filter: (m) => m.status === 'disabled' },
+      { title: 'Email not confirmed yet', filter: (m) => m.status === 'pending' && !m.email_confirmed,
         note: 'These users have not opened the confirmation link. ' +
               'Accounts created by mistake can be deleted from Supabase > Authentication > Users.' },
     ];
 
-    function cell(row, text) {
-      const td = document.createElement('td');
-      td.textContent = text ?? '';
-      row.appendChild(td);
-      return td;
+    const nameOf = (m) => (m.first_name ? `${m.first_name} ${m.last_name ?? ''}`.trim() : m.email);
+
+    function el(tag, text, cls) {
+      const e = document.createElement(tag);
+      if (text != null) e.textContent = text;
+      if (cls) e.className = cls;
+      return e;
     }
 
     function actionButton(td, label, kind, onClick) {
-      const b = document.createElement('button');
+      const b = el('button', label, kind);
       b.type = 'button';
-      b.textContent = label;
-      b.className = kind;
       b.addEventListener('click', onClick);
       td.appendChild(b);
     }
 
     async function setMember(member, changes, question) {
-      const name = member.first_name ? `${member.first_name} ${member.last_name}` : member.email;
-      if (!window.confirm(`${question}\n\n${name}`)) return;
+      if (question && !window.confirm(`${question}\n\n${nameOf(member)}`)) { await load(); return; }
       const { error } = await supabase.rpc('admin_set_member', {
-        p_user_id: member.id,
-        p_role: changes.role ?? null,
-        p_status: changes.status ?? null,
+        p_user_id: member.id, p_role: changes.role ?? null, p_status: changes.status ?? null,
       });
-      if (error) { showMessage(msg, friendlyError(error)); return; }
-      showMessage(msg, 'Member updated.', 'success');
+      if (error) showMessage(msg, friendlyError(error));
+      else showMessage(msg, 'Member updated.', 'success');
       await load();
     }
 
+    function roleSelect(m) {
+      const s = document.createElement('select');
+      s.setAttribute('aria-label', `Role of ${nameOf(m)}`);
+      ROLES.forEach(([v, l]) => {
+        const o = el('option', l);
+        o.value = v;
+        o.selected = v === m.role;
+        s.appendChild(o);
+      });
+      s.addEventListener('change', () =>
+        setMember(m, { role: s.value }, `Change the role to "${s.value}"?`));
+      return s;
+    }
+
     function actions(td, m) {
-      if (m.id === me.id) {           // own account: no actions, prevents lock-out
-        td.textContent = '(you)';
-        return;
-      }
+      if (m.id === me.id) { td.textContent = '(you)'; return; }   // prevents self lock-out
       if (m.status === 'pending' && m.email_confirmed) {
-        actionButton(td, 'Approve', 'primary', () =>
-          setMember(m, { status: 'active' }, 'Approve this account?'));
-        actionButton(td, 'Reject', 'danger', () =>
-          setMember(m, { status: 'disabled' }, 'Reject (disable) this account?'));
+        actionButton(td, 'Approve', '', () => setMember(m, { status: 'active' }, 'Approve this account?'));
+        actionButton(td, 'Reject', 'danger', () => setMember(m, { status: 'disabled' }, 'Reject (disable) this account?'));
       } else if (m.status === 'active') {
-        if (m.role === 'admin') {
-          actionButton(td, 'Make user', 'secondary', () =>
-            setMember(m, { role: 'user' }, 'Remove administrator rights?'));
-        } else {
-          actionButton(td, 'Make admin', 'secondary', () =>
-            setMember(m, { role: 'admin' }, 'Grant administrator rights?'));
-        }
-        actionButton(td, 'Disable', 'danger', () =>
-          setMember(m, { status: 'disabled' }, 'Disable this account?'));
+        td.appendChild(roleSelect(m));
+        actionButton(td, 'Disable', 'danger', () => setMember(m, { status: 'disabled' }, 'Disable this account?'));
       } else if (m.status === 'disabled') {
-        actionButton(td, 'Re-enable', 'secondary', () =>
-          setMember(m, { status: 'active' }, 'Re-enable this account?'));
+        actionButton(td, 'Re-enable', 'secondary', () => setMember(m, { status: 'active' }, 'Re-enable this account?'));
       }
     }
 
-    function renderSection(section, members) {
-      const wrap = document.createElement('section');
-      wrap.className = 'card';
-      const h2 = document.createElement('h2');
-      h2.textContent = `${section.title} (${members.length})`;
-      wrap.appendChild(h2);
-
-      if (section.note) {
-        const p = document.createElement('p');
-        p.className = 'hint';
-        p.textContent = section.note;
-        wrap.appendChild(p);
-      }
-      if (members.length === 0) {
-        const p = document.createElement('p');
-        p.className = 'hint';
-        p.textContent = 'None.';
-        wrap.appendChild(p);
-        return wrap;
-      }
-
-      const scroller = document.createElement('div');
-      scroller.className = 'table-scroll';
-      const table = document.createElement('table');
-      table.innerHTML = `<thead><tr>
-        <th>Name</th><th>Email</th><th>Role</th><th>Registered</th><th>Last login</th><th>Actions</th>
-      </tr></thead>`;
+    function table(headers, rows) {
+      const scroller = el('div', null, 'table-scroll');
+      const t = document.createElement('table');
+      const thead = document.createElement('thead');
+      const tr = document.createElement('tr');
+      headers.forEach((h) => tr.appendChild(el('th', h)));
+      thead.appendChild(tr);
+      t.appendChild(thead);
       const tbody = document.createElement('tbody');
-      members.forEach((m) => {
+      rows.forEach((r) => tbody.appendChild(r));
+      t.appendChild(tbody);
+      scroller.appendChild(t);
+      return scroller;
+    }
+
+    function renderSection(section, members) {
+      const wrap = el('section', null, 'card');
+      wrap.appendChild(el('h2', `${section.title} (${members.length})`));
+      if (section.note) wrap.appendChild(el('p', section.note, 'hint'));
+      if (!members.length) { wrap.appendChild(el('p', 'None.', 'hint')); return wrap; }
+      const rows = members.map((m) => {
         const tr = document.createElement('tr');
-        cell(tr, m.first_name ? `${m.first_name} ${m.last_name ?? ''}` : '—');
-        cell(tr, m.email);
-        cell(tr, m.role);
-        cell(tr, formatDate(m.created_at));
-        cell(tr, m.last_sign_in_at ? formatDateTime(m.last_sign_in_at) : '—');
-        const td = cell(tr, '');
-        td.className = 'actions';
+        [nameOf(m), m.email, m.role, formatDate(m.created_at),
+          m.last_sign_in_at ? formatDateTime(m.last_sign_in_at) : '—'].forEach((v) => tr.appendChild(el('td', v)));
+        const td = el('td', null, 'actions');
         actions(td, m);
-        tbody.appendChild(tr);
+        tr.appendChild(td);
+        return tr;
       });
-      table.appendChild(tbody);
-      scroller.appendChild(table);
-      wrap.appendChild(scroller);
+      wrap.appendChild(table(['Name', 'Email', 'Role', 'Registered', 'Last login', 'Actions'], rows));
+      return wrap;
+    }
+
+    // Sub-team leaders: default leader of the tasks of each sub-team
+    function renderLeaders() {
+      const wrap = el('section', null, 'card');
+      wrap.appendChild(el('h2', 'Sub-team leaders'));
+      wrap.appendChild(el('p', 'The leader of a sub-team is the default leader of its tasks (first sub-team of the task, ' +
+        'in the order of this list). A different leader can be set on each task in the Gantt Table view. ' +
+        'Only active teamleaders and admins can be leaders.', 'hint'));
+      const eligible = MEMBERS.filter((m) => m.status === 'active' && (m.role === 'teamleader' || m.role === 'admin'));
+      const rows = TEAMS.map((team) => {
+        const tr = document.createElement('tr');
+        tr.appendChild(el('td', team));
+        const td = document.createElement('td');
+        const s = document.createElement('select');
+        s.setAttribute('aria-label', `Leader of ${team}`);
+        const none = el('option', '— none —');
+        none.value = '';
+        s.appendChild(none);
+        const current = LEADERS.get(team) ?? '';
+        const options = eligible.slice();
+        const stale = current && !eligible.some((m) => m.id === current) ? MEMBERS.find((m) => m.id === current) : null;
+        if (stale) options.push(stale);
+        options.forEach((m) => {
+          const o = el('option', `${nameOf(m)} (${m.role})`);
+          o.value = m.id;
+          o.selected = m.id === current;
+          s.appendChild(o);
+        });
+        s.addEventListener('change', async () => {
+          const { error } = s.value
+            ? await supabase.from('team_leaders').upsert({ team, leader_id: s.value })
+            : await supabase.from('team_leaders').delete().eq('team', team);
+          if (error) showMessage(msg, friendlyError(error));
+          else showMessage(msg, `Leader of ${team} updated.`, 'success');
+          await load();
+        });
+        td.appendChild(s);
+        if (stale) td.appendChild(el('span', ' Not a valid leader any more: choose another one.', 'hint'));
+        tr.appendChild(td);
+        return tr;
+      });
+      wrap.appendChild(table(['Sub-team', 'Leader'], rows));
       return wrap;
     }
 
     async function load() {
-      const { data, error } = await supabase.rpc('admin_list_members');
-      if (error) { showMessage(msg, friendlyError(error)); return; }
+      const [m, l] = await Promise.all([
+        supabase.rpc('admin_list_members'),
+        supabase.from('team_leaders').select('team, leader_id'),
+      ]);
+      if (m.error || l.error) { showMessage(msg, friendlyError(m.error || l.error)); return; }
+      MEMBERS = m.data;
+      LEADERS = new Map(l.data.map((x) => [x.team, x.leader_id]));
       container.replaceChildren(
-        ...SECTIONS.map((s) => renderSection(s, data.filter(s.filter)))
+        renderSection(SECTIONS[0], MEMBERS.filter(SECTIONS[0].filter)),
+        renderLeaders(),
+        ...SECTIONS.slice(1).map((s) => renderSection(s, MEMBERS.filter(s.filter))),
       );
     }
 

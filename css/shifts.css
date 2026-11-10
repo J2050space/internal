@@ -7,6 +7,8 @@
   --sh-mine: #1f5fa8;
   --sh-mine-bg: #dce8f7;
   --sh-grid: #e8ecf1;
+  --sh-req: #c62828;
+  --sh-req-bg: #fdecea;
   --slot: 24px;
 }
 
@@ -26,6 +28,7 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .sw.free { background: var(--sh-free-bg); border-color: var(--sh-free); }
 .sw.full { background: var(--sh-full-bg); border-color: var(--sh-full); }
 .sw.mine { background: var(--sh-mine-bg); border-color: var(--sh-mine); }
+.sw.req { background: var(--sh-req-bg); border-color: var(--sh-req); border-style: dashed; }
 .sw.past { background: var(--surface); border-color: var(--border); opacity: .6; }
 
 /* ---------- Week grid ---------- */
@@ -63,6 +66,8 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .sblock.free { background: var(--sh-free-bg); border-color: var(--sh-free); }
 .sblock.full { background: var(--sh-full-bg); border-color: var(--sh-full); }
 .sblock.mine { background: var(--sh-mine-bg); border-color: var(--sh-mine); }
+.sblock.req { background: var(--sh-req-bg); border-color: var(--sh-req); border-style: dashed; }
+.sblock.req .rq { font-weight: 700; color: var(--sh-req); text-transform: uppercase; letter-spacing: .03em; }
 .sblock.past { opacity: .55; }
 .sblock .t { font-weight: 600; font-variant-numeric: tabular-nums; }
 .sblock .c { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }
@@ -113,3 +118,4 @@ details.hist summary { cursor: pointer; color: var(--muted); font-size: 0.875rem
 @media (max-width: 480px) { .mbox .row { grid-template-columns: 1fr; } }
 
 #toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 8px 14px; border-radius: 6px; font-size: 0.8125rem; z-index: 50; max-width: 90vw; }
+.bad { color: var(--error); font-weight: 600; }

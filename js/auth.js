@@ -34,6 +34,8 @@ const ERROR_MESSAGES = {
   'Account not active': 'Your account is not active.',
   'At least one active admin is required': 'At least one active administrator is required.',
   'Member not found': 'Member not found.',
+  'Leader shall be an active teamleader or admin':
+    'The leader shall be an active member with role teamleader or admin.',
 };
 
 export function friendlyError(error) {
@@ -84,6 +86,7 @@ export function renderHeader(profile, activePage) {
     <nav>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
       <a href="gantt.html" data-page="gantt">Gantt</a>
+      <a href="stats.html" data-page="stats" data-admin hidden>Stats</a>
       <a href="members.html" data-page="members" data-admin hidden>Members</a>
       <a href="account.html" data-page="account">Account</a>
     </nav>

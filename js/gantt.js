@@ -62,16 +62,22 @@ const ADMIN = profile?.role === 'admin';
 let ROWS = [];   // tasks from the database
 let DEPS = [];   // { task_id, depends_on }
 let EVENTS = []; // timeline events: fixed external dates, not tasks
+let PEOPLE = new Map();  // profile id -> { name, role, status }
+let TEAM_LEADERS = new Map(); // sub-team -> leader id
 let ALL = [];    // derived, ordered
 const ui = { view: 'gantt', gteam: 'All', team: 'SYSTEMS', q: '', hideDone: false, open: null, confirmDel: null };
 
 async function load() {
-  const [t, d, ev] = await Promise.all([
+  const [t, d, ev, pr, tl] = await Promise.all([
     supabase.from('tasks').select('*'),
     supabase.from('task_dependencies').select('task_id, depends_on'),
     supabase.from('timeline_events').select('*'),
+    supabase.from('profiles').select('id, full_name, email, role, status'),
+    supabase.from('team_leaders').select('team, leader_id'),
   ]);
-  if (t.error || d.error || ev.error) throw (t.error || d.error || ev.error);
+  if (t.error || d.error || ev.error || pr.error || tl.error) throw (t.error || d.error || ev.error || pr.error || tl.error);
+  PEOPLE = new Map(pr.data.map((p) => [p.id, { name: p.full_name ?? p.email, role: p.role, status: p.status }]));
+  TEAM_LEADERS = new Map(tl.data.map((x) => [x.team, x.leader_id]));
   ROWS = t.data;
   DEPS = d.data;
   EVENTS = ev.data.sort((a, b) => (a.event_date < b.event_date ? -1 : 1));
@@ -82,6 +88,22 @@ async function reload(message) {
   render();
   if (message) toast(message);
 }
+
+/* ---------- leaders ---------- */
+// Same rule as the database view task_leaders:
+// override > first sub-team of the task with a leader > leader of the parent task.
+const validLeader = (id) => {
+  const p = id ? PEOPLE.get(id) : null;
+  return p && p.status === 'active' && (p.role === 'teamleader' || p.role === 'admin') ? id : null;
+};
+const teamLeader = (t) => {
+  for (const team of TEAMS) if (t.teams.includes(team)) { const l = validLeader(TEAM_LEADERS.get(team)); if (l) return l; }
+  return null;
+};
+const eligibleLeaders = () => [...PEOPLE.entries()]
+  .filter(([id]) => validLeader(id))
+  .sort((a, b) => a[1].name.localeCompare(b[1].name));
+const nameOfPerson = (id) => (id ? PEOPLE.get(id)?.name ?? '?' : '');
 
 /* ---------- derived model ---------- */
 function cmp(a, b) {
@@ -113,6 +135,19 @@ function build() {
     return t;
   });
 
+  // Effective leader
+  const own = new Map(derived.map((t) => [t.id, validLeader(t.leader_id) ?? teamLeader(t)]));
+  derived.forEach((t) => {
+    const override = validLeader(t.leader_id);
+    const team = teamLeader(t);
+    const parent = t.parent_id ? own.get(t.parent_id) ?? null : null;
+    t.defaultLeader = team ?? parent;
+    t.defaultSource = team ? 'sub-team' : parent ? 'parent task' : null;
+    t.leader = override ?? t.defaultLeader;
+    t.leaderName = nameOfPerson(t.leader);
+    t.invalidOverride = Boolean(t.leader_id && !override);
+  });
+
   // Order: top-level tasks by deadline, each followed by its subtasks
   const children = new Map();
   derived.forEach((t) => {
@@ -136,7 +171,7 @@ function filterTasks(list, team, q, hideDone) {
     if (team !== 'All' && !t.teams.includes(team)) return false;
     if (hideDone && t.status === 'done') return false;
     if (q) {
-      const s = `${t.code} ${t.name} ${t.responsible ?? ''}`.toLowerCase();
+      const s = `${t.code} ${t.name} ${t.responsible ?? ''} ${t.leaderName}`.toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
     }
     return true;
@@ -188,7 +223,9 @@ function stats(ts) {
   const work = ts.filter((t) => t.status === 'working' && !t.late).length;
   const late = ts.filter((t) => t.late).length;
   const over = ts.filter((t) => t.over && !t.late).length;
+  const noLeader = ts.filter((t) => t.status !== 'done' && !t.leader).length;
   let h = `<li>Done<b>${done}/${ts.length}</b></li><li>In progress<b>${work}</b></li>` +
+    `<li>Open without leader<b class="${noLeader ? 'bad' : ''}">${noLeader}</b></li>` +
     `<li>Overdue<b class="${late ? 'bad' : ''}">${late}</b></li>` +
     `<li>Start after latest start<b class="${over ? 'bad' : ''}">${over}</b></li>`;
   ts.filter((t) => t.milestone_label).sort(cmp).forEach((m) => {
@@ -265,7 +302,7 @@ function gantt(all) {
     const s = dn(t.start_date), e = dn(t.end_date);
     const w = Math.max((e - s + 1) * PX, 10), l = (s - RS) * PX, mile = (e - s) <= 0;
     pos[t.id] = { i, l, r: l + w };
-    const tip = `${t.code} · ${t.name}\nResponsible: ${t.responsible ?? ''}\nStatus: ${STATUS_LABEL[t.status]}${t.late ? ' (overdue)' : ''}` +
+    const tip = `${t.code} · ${t.name}\nLeader: ${t.leaderName || '—'}\nResponsible: ${t.responsible ?? ''}\nStatus: ${STATUS_LABEL[t.status]}${t.late ? ' (overdue)' : ''}` +
       `\nStart: ${formatDate(t.start_date)} · Deadline: ${formatDate(t.end_date)}` +
       `\nEstimated duration: ${t.duration_days} d · latest useful start: ${formatDate(t.ls)}` +
       (t.parentCode ? `\nSubtask of ${t.parentCode}` : '') + (t.note ? `\n${t.note}` : '');
@@ -302,6 +339,16 @@ function gantt(all) {
 }
 
 /* ---------- Table view ---------- */
+function leaderSelect(t) {
+  const def = t.defaultLeader ? `Default: ${nameOfPerson(t.defaultLeader)} (${t.defaultSource})` : 'Default: none';
+  const options = eligibleLeaders().map(([id, p]) =>
+    `<option value="${id}"${id === t.leader_id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+  const warn = t.invalidOverride ? '<span class="req bad">Override not valid any more</span>'
+    : (!t.leader && t.status !== 'done' ? '<span class="req bad">No leader</span>' : '');
+  return `<select data-id="${t.id}" data-f="leader_id" aria-label="Leader of ${esc(t.code)}"${ADMIN ? '' : ' disabled'}>
+    <option value="">${esc(def)}</option>${options}</select>${warn}`;
+}
+
 function pickList(kind, t, items, summary) {
   const key = `${kind}:${t.id}`;
   return `<details class="pick" data-key="${key}"${ui.open === key ? ' open' : ''}><summary>${esc(summary)}</summary>
@@ -343,6 +390,7 @@ function rowHtml(t) {
     <td>${parentSelect(t)}</td>
     <td>${input('end_date', 'date', t.end_date, 'Deadline')}</td>
     <td>${input('name', 'text', t.name, 'Activity')}${input('note', 'text', t.note ?? '', 'Note', ' class="note-in" placeholder="Note"')}</td>
+    <td>${leaderSelect(t)}</td>
     <td>${input('responsible', 'text', t.responsible ?? '', 'Responsible')}</td>
     <td>${statusSelect(t)}</td>
     <td>${teamsEditor(t)}</td>
@@ -363,10 +411,10 @@ function table(all) {
     <td><input type="date" id="n-end"></td>
     <td><input type="text" id="n-name" placeholder="New activity"></td>
     <td><input type="text" id="n-resp" placeholder="Responsible"></td>
-    <td colspan="7"><button type="button" data-act="add">Add task</button></td></tr>`;
+    <td></td><td colspan="7"><button type="button" data-act="add">Add task</button></td></tr>`;
   return toolbar(false) +
     `<div class="tw"><table><thead><tr>
-      <th>Code and dependants</th><th>Parent</th><th>Deadline</th><th>Activity and note</th><th>Responsible</th><th>Status</th><th>Sub-teams</th>
+      <th>Code and dependants</th><th>Parent</th><th>Deadline</th><th>Activity and note</th><th>Leader</th><th>Responsible</th><th>Status</th><th>Sub-teams</th>
       <th class="x">Start (estimate)</th><th>Duration (d)</th><th>Latest start</th><th>Milestone</th><th></th>
     </tr></thead><tbody>${ts.map(rowHtml).join('')}${addRow}</tbody></table></div>
     <p class="hint">"Required by" lists the tasks that cannot start before this one ends. "Parent" turns a task into a subtask (one level only).
@@ -383,10 +431,10 @@ function subteams(all) {
   }).join('') + '</div>';
   let h = `${chips}<h2 class="g-h2">${team} <small>${ts.length} tasks, ${ts.filter((t) => t.status === 'done').length} done</small></h2>`;
   if (!ts.length) return `${h}<div class="empty">No task assigned to this sub-team.</div>`;
-  h += `<div class="tw short"><table><thead><tr><th>Code and dependants</th><th>Deadline</th><th>Activity</th><th>Responsible</th><th>Status</th><th class="x">Start</th><th>Latest start</th></tr></thead><tbody>` +
+  h += `<div class="tw short"><table><thead><tr><th>Code and dependants</th><th>Deadline</th><th>Activity</th><th>Leader</th><th>Responsible</th><th>Status</th><th class="x">Start</th><th>Latest start</th></tr></thead><tbody>` +
     ts.map((t) => `<tr class="r-${t.cls}${t.depth ? ' sub' : ''}"><td><span class="code">${esc(t.code)}</span>${reqText(t) ? `<span class="req">${esc(reqText(t))}</span>` : ''}</td>
       <td class="mono">${formatDate(t.end_date)}</td><td>${esc(t.name)}${t.note ? `<br><span class="note">${esc(t.note)}</span>` : ''}</td>
-      <td>${esc(t.responsible)}</td><td>${statusSelect(t)}</td><td class="mono x">${formatDate(t.start_date)}</td>
+      <td>${esc(t.leaderName || "—")}</td><td>${esc(t.responsible)}</td><td>${statusSelect(t)}</td><td class="mono x">${formatDate(t.start_date)}</td>
       <td class="mono ${t.over ? 'bad' : ''}">${formatDate(t.ls)}${t.over ? ' ▲' : ''}</td></tr>`).join('') +
     '</tbody></table></div><p class="hint">A task with several sub-teams appears in each of them. Sub-teams are edited in the Table view.</p>';
   return h;
@@ -404,7 +452,7 @@ function week(all) {
     if (!items.length) return `${h}<div class="empty" style="padding:14px;text-align:left">${none}</div>`;
     return h + '<div class="tw short"><table><tbody>' + items.map((x) =>
       `<tr class="r-${x.cls}"><td style="width:56px"><span class="code">${esc(x.code)}</span></td>
-        <td>${esc(x.name)}<span class="req">${esc(x.responsible)}</span></td>
+        <td>${esc(x.name)}<span class="req">${esc(x.leaderName ? `Leader: ${x.leaderName}` : "No leader")}${x.responsible ? ` · ${esc(x.responsible)}` : ""}</span></td>
         <td class="mono" style="white-space:nowrap">start ${fmtS(x.start_date)}<span class="req">due ${fmtS(x.end_date)}</span></td>
         <td style="width:150px">${statusSelect(x)}</td></tr>`).join('') + '</tbody></table></div>';
   };
@@ -447,9 +495,9 @@ async function eventWrite(query, message) {
 
 /* ---------- CSV ---------- */
 function exportCsv() {
-  const rows = [['Code', 'Parent', 'Required by', 'Deadline', 'Activity', 'Responsible', 'Status', 'Sub-teams',
+  const rows = [['Code', 'Parent', 'Required by', 'Deadline', 'Activity', 'Leader', 'Responsible', 'Status', 'Sub-teams',
     'Start (estimate)', 'Duration (d)', 'Latest start', 'Milestone', 'Note']];
-  ALL.forEach((t) => rows.push([t.code, t.parentCode ?? '', t.requiredBy.join(' '), formatDate(t.end_date), t.name,
+  ALL.forEach((t) => rows.push([t.code, t.parentCode ?? '', t.requiredBy.join(' '), formatDate(t.end_date), t.name, t.leaderName,
     t.responsible ?? '', STATUS_LABEL[t.status], t.teams.join(' '), formatDate(t.start_date), t.duration_days,
     formatDate(t.ls), t.milestone_label ?? '', t.note ?? '']));
   const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
@@ -510,6 +558,7 @@ document.addEventListener('change', async (e) => {
   if ((f === 'name' || f === 'code') && !val.trim()) { render(); return; }
   if (f === 'duration_days') val = Math.max(1, Math.round(Number(val) || 1));
   if (f === 'parent_id') val = val ? Number(val) : null;
+  if (f === 'leader_id') val = val || null;
   if (['note', 'responsible', 'milestone_label'].includes(f)) val = val.trim() || null;
   if (f === 'name' || f === 'code') val = val.trim();
   await patchTask(id, { [f]: val });

@@ -136,3 +136,4 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border);
 th { color: var(--muted); font-weight: 600; }
 td.actions { white-space: nowrap; }
 td.actions button { padding: 4px 10px; margin-right: 6px; font-size: 0.8125rem; }
+td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
