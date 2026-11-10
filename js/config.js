@@ -6,4 +6,6 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = 'https://aytqqficwdbtvgnigijg.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_DyR2KP0z15aU9_HOcgR3oQ_oj0lh81A';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { flowType: 'implicit' },
+});

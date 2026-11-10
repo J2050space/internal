@@ -15,24 +15,33 @@
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" required>
       <button id="login-btn" type="submit">Log in</button>
-      <p id="login-error" class="error" role="alert"></p>
+      <p id="login-msg" class="message" role="alert" hidden></p>
     </form>
+    <p class="links">
+      <a href="register.html">Create account</a>
+      <a href="forgot.html">Forgot password?</a>
+    </p>
   </main>
 
   <script type="module">
     import { supabase } from './js/config.js';
+    import { getSessionProfile, landingPage, friendlyError, showMessage } from './js/auth.js';
 
-    // Already logged in: go straight to the shifts page
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) window.location.replace('shifts.html');
+    const msg = document.getElementById('login-msg');
+
+    // Already logged in (also after opening the email confirmation link)
+    async function goToLanding() {
+      const { session, profile } = await getSessionProfile();
+      if (session) window.location.replace(landingPage(profile));
+    }
+    try { await goToLanding(); } catch (err) { showMessage(msg, friendlyError(err)); }
 
     const form = document.getElementById('login-form');
-    const errorBox = document.getElementById('login-error');
     const button = document.getElementById('login-btn');
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      errorBox.textContent = '';
+      showMessage(msg, '');
       button.disabled = true;
 
       const { error } = await supabase.auth.signInWithPassword({
@@ -41,13 +50,14 @@
       });
 
       if (error) {
-        errorBox.textContent = error.message === 'Invalid login credentials'
-          ? 'Invalid email or password.'
-          : error.message;
+        showMessage(msg, friendlyError(error));
         button.disabled = false;
         return;
       }
-      window.location.replace('shifts.html');
+      try { await goToLanding(); } catch (err) {
+        showMessage(msg, friendlyError(err));
+        button.disabled = false;
+      }
     });
   </script>
 </body>
