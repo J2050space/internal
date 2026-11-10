@@ -3,10 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>J2050 Team Management</title>
+  <title>J2050 Team Management – Login</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <h1>J2050 Team Management</h1>
-  <p>Site under construction.</p>
+<body class="login-page">
+  <main class="login-box">
+    <h1>J2050 Team Management</h1>
+    <form id="login-form" novalidate>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button id="login-btn" type="submit">Log in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </main>
+
+  <script type="module">
+    import { supabase } from './js/config.js';
+
+    // Already logged in: go straight to the shifts page
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) window.location.replace('shifts.html');
+
+    const form = document.getElementById('login-form');
+    const errorBox = document.getElementById('login-error');
+    const button = document.getElementById('login-btn');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errorBox.textContent = '';
+      button.disabled = true;
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      });
+
+      if (error) {
+        errorBox.textContent = error.message === 'Invalid login credentials'
+          ? 'Invalid email or password.'
+          : error.message;
+        button.disabled = false;
+        return;
+      }
+      window.location.replace('shifts.html');
+    });
+  </script>
 </body>
 </html>

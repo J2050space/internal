@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>J2050 Team Management – Lab shifts</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="app-header"></header>
+  <main id="app-main">
+    <h1>Lab shifts</h1>
+    <p>Page under construction.</p>
+  </main>
+
+  <script type="module">
+    import { initProtectedPage } from './js/auth.js';
+    const profile = await initProtectedPage('shifts');
+    if (profile) {
+      // Shift list and booking will be implemented here.
+    }
+  </script>
+</body>
+</html>
