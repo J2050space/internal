@@ -1,0 +1,115 @@
+/* Lab shifts page: two weekly grids (Mon-Fri, 08:00-18:00), list on narrow screens, requests below. */
+:root {
+  --sh-free: #1e8a4c;
+  --sh-free-bg: #e6f4ec;
+  --sh-full: #8e959f;
+  --sh-full-bg: #eceef1;
+  --sh-mine: #1f5fa8;
+  --sh-mine-bg: #dce8f7;
+  --sh-grid: #e8ecf1;
+  --slot: 24px;
+}
+
+[hidden] { display: none !important; }
+
+.s-top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.s-top h1 { margin: 0; }
+.s-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.s-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 8px; }
+.s-tools .range { font-weight: 600; }
+.s-tools button { padding: 6px 10px; }
+label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 0.8125rem; }
+
+.s-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.75rem; color: var(--muted); margin: 0 0 12px; padding: 0; list-style: none; }
+.s-legend li { display: flex; gap: 6px; align-items: center; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 2px solid; }
+.sw.free { background: var(--sh-free-bg); border-color: var(--sh-free); }
+.sw.full { background: var(--sh-full-bg); border-color: var(--sh-full); }
+.sw.mine { background: var(--sh-mine-bg); border-color: var(--sh-mine); }
+.sw.past { background: var(--surface); border-color: var(--border); opacity: .6; }
+
+/* ---------- Week grid ---------- */
+.week { margin-bottom: 20px; }
+.week h2 { font-size: 1rem; margin: 0 0 8px; }
+.wscroll { overflow-x: auto; }
+.wgrid { display: grid; grid-template-columns: 48px repeat(5, minmax(120px, 1fr)); min-width: 680px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.wgrid .corner, .wgrid .dhead { height: 36px; border-bottom: 1px solid var(--border); }
+.wgrid .dhead { display: flex; align-items: center; justify-content: center; font-size: 0.8125rem; font-weight: 600; border-left: 1px solid var(--border); }
+.wgrid .dhead.today { color: var(--accent); background: var(--sh-mine-bg); }
+.times { position: relative; }
+.times span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 0.6875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dbody {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(to bottom, var(--sh-grid) 0, var(--sh-grid) 1px, transparent 1px, transparent calc(var(--slot) * 2));
+  cursor: pointer;
+}
+.dbody.past { background-color: #f7f8fa; cursor: default; }
+.dbody.today { background-color: color-mix(in srgb, var(--sh-mine-bg) 35%, var(--surface)); }
+
+.sblock {
+  position: absolute;
+  padding: 3px 5px;
+  border: 2px solid;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--text);
+}
+.sblock.free { background: var(--sh-free-bg); border-color: var(--sh-free); }
+.sblock.full { background: var(--sh-full-bg); border-color: var(--sh-full); }
+.sblock.mine { background: var(--sh-mine-bg); border-color: var(--sh-mine); }
+.sblock.past { opacity: .55; }
+.sblock .t { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sblock .c { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }
+.sblock .n { color: var(--muted); }
+.sblock .seats { float: right; font-weight: 600; }
+
+.outside { font-size: 0.8125rem; color: var(--muted); margin: 6px 0 0; }
+
+/* ---------- List (narrow screens) ---------- */
+.wlist { display: none; }
+.wlist .lday { margin: 10px 0 4px; font-size: 0.875rem; font-weight: 600; }
+.wlist .lday.today { color: var(--accent); }
+.wlist .sblock { position: static; display: block; width: 100%; margin-bottom: 6px; font-size: 0.8125rem; }
+.wlist .none { font-size: 0.8125rem; color: var(--muted); margin: 0 0 6px; }
+@media (max-width: 700px) {
+  .wscroll { display: none; }
+  .wlist { display: block; }
+}
+
+/* ---------- Requests ---------- */
+#requests h2 { font-size: 1rem; margin: 24px 0 8px; }
+#requests .table-scroll { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.st { padding: 1px 8px; border-radius: 10px; font-size: 0.75rem; border: 1px solid var(--border); white-space: nowrap; }
+.st.approved { color: var(--sh-free); border-color: var(--sh-free); }
+.st.rejected { color: var(--error); border-color: var(--error); }
+.st.withdrawn { color: var(--muted); }
+details.hist { margin-top: 12px; }
+details.hist summary { cursor: pointer; color: var(--muted); font-size: 0.875rem; }
+
+/* ---------- Modal ---------- */
+.modal { position: fixed; inset: 0; background: rgba(20, 26, 34, .45); display: grid; place-items: center; padding: 16px; z-index: 40; }
+.mbox { background: var(--surface); border-radius: 8px; padding: 20px; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; }
+.mbox h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.mbox .meta { color: var(--muted); font-size: 0.875rem; margin: 0 0 12px; }
+.mbox dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 12px; font-size: 0.875rem; }
+.mbox dt { color: var(--muted); }
+.mbox dd { margin: 0; white-space: pre-wrap; }
+.mbox ul.people { margin: 0 0 12px; padding: 0; list-style: none; font-size: 0.875rem; }
+.mbox ul.people li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.mbox ul.people button { padding: 2px 8px; font-size: 0.75rem; }
+.mbox form { display: grid; gap: 6px; }
+.mbox .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.mbox .row > div { display: grid; gap: 4px; }
+.mbox textarea { min-height: 70px; resize: vertical; }
+.mbox .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.mbox .removal { border: 1px solid var(--error); border-radius: 6px; padding: 8px; font-size: 0.8125rem; }
+.mbox .removal label { display: flex; gap: 6px; align-items: center; color: var(--text); }
+@media (max-width: 480px) { .mbox .row { grid-template-columns: 1fr; } }
+
+#toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 8px 14px; border-radius: 6px; font-size: 0.8125rem; z-index: 50; max-width: 90vw; }

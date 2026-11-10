@@ -5,20 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>J2050 Team Management – Lab shifts</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/shifts.css">
 </head>
 <body>
   <header id="app-header"></header>
   <main id="app-main">
-    <h1>Lab shifts</h1>
-    <p>Page under construction.</p>
+    <div class="s-top">
+      <h1>Lab shifts</h1>
+      <div class="s-actions" id="s-actions"></div>
+    </div>
+    <div class="s-tools" id="s-tools"></div>
+    <ul class="s-legend">
+      <li><span class="sw free"></span>Free seats</li>
+      <li><span class="sw full"></span>Full</li>
+      <li><span class="sw mine"></span>You are booked</li>
+      <li><span class="sw past"></span>Started or past</li>
+    </ul>
+    <div id="weeks"><p class="hint">Loading…</p></div>
+    <section id="requests"></section>
   </main>
+  <div id="modal" class="modal" hidden></div>
+  <div id="toast" hidden></div>
 
-  <script type="module">
-    import { initProtectedPage } from './js/auth.js';
-    const profile = await initProtectedPage('shifts');
-    if (profile) {
-      // Shift list and booking will be implemented here.
-    }
-  </script>
+  <script type="module" src="js/shifts.js"></script>
 </body>
 </html>
