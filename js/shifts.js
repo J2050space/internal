@@ -1,13 +1,15 @@
-// Lab shifts: two weekly grids (Mon-Fri, 08:00-18:00), booking, admin management, shift requests.
+// Lab shifts: two weekly grids (Mon-Fri, 08:30-18:30), half-hour slots, booking of own hours,
+// supervisors (admins, not counted), admin management, shift requests.
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, formatTime, formatDateTime, zonedParts, zonedToIso, todayIso } from './format.js';
 
 /* ---------- constants ---------- */
-const DAY_START = 8 * 60;      // 08:00
-const DAY_END = 18 * 60;       // 18:00
-const SLOT = 30;               // minutes per grid row
+const DAY_START = 8 * 60 + 30; // 08:30
+const DAY_END = 18 * 60 + 30;  // 18:30
+const SLOT = 30;               // minutes per slot and per grid row
 const SLOT_PX = 24;            // must match --slot in shifts.css
+const SLOT_MS = SLOT * 60e3;   // one booking slot
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const MAX_CAPACITY = 50;
 const HISTORY_DAYS = 30;
@@ -22,6 +24,12 @@ const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const personName = (p) => p?.full_name ?? p?.email ?? 'Unknown';
+// Duration of n milliseconds as "1 h 30 min"
+const durationText = (ms) => {
+  const min = Math.round(ms / 60e3);
+  const h = Math.floor(min / 60), m = min % 60;
+  return [h ? `${h} h` : '', m ? `${m} min` : ''].filter(Boolean).join(' ');
+};
 
 function toast(message) {
   const t = document.getElementById('toast');
@@ -32,26 +40,31 @@ function toast(message) {
 }
 
 const ERRORS = {
-  'Shift full': 'The shift is full.',
-  'Already booked': 'You are already booked on this shift.',
-  'Overlapping shift': 'You (or the requester) already have a shift overlapping this one.',
-  'Shift already started': 'The shift has already started.',
+  'Shift full': 'At least one of the selected slots is full.',
+  'Overlapping shift': 'The selected hours overlap another booking (yours or of the requester).',
+  'Shift already started': 'The selected hours have already started.',
+  'Booking already started': 'Your booking has already started: it can no longer be changed.',
   'Shift not found': 'The shift no longer exists.',
-  'Capacity lower than current bookings': 'The capacity cannot be lower than the number of people booked.',
+  'Half-hour slots only': 'Bookings start and end on :00 or :30.',
+  'Outside the shift': 'The selected hours are outside the shift.',
+  'Invalid time range': 'The end shall be after the start.',
+  'Slot without supervisor': 'At least one of the selected slots has no supervisor yet.',
+  'Participants would remain without supervisor': 'Not possible: some participants would remain without supervisor. Add another supervisor for those slots first.',
+  'Only admins can be added as supervisors': 'Only admins can be added as supervisors.',
+  'Member not found or not active': 'The member is not active.',
+  'Capacity lower than current bookings': 'In at least one slot more participants are booked than the new capacity.',
   'Task required': 'Select a task.',
   'Request not found': 'The request no longer exists.',
   'Request not pending': 'The request has already been handled.',
   'Request not found or not pending': 'The request has already been handled.',
   'Requester account not active': 'The requester account is not active.',
-  'Supervisor required': 'Select the supervising admin.',
   'Supervisor shall be an active admin': 'The supervisor shall be an active admin.',
-  'Supervisor is booked as participant': 'The selected supervisor is booked as participant: remove the booking first.',
-  'Supervisor of this shift': 'You are the supervisor of this shift: supervisors are not booked as participants.',
 };
 function errorText(error) {
   const m = error?.message ?? String(error);
   if (/row-level security/.test(m) && /shift_requests/.test(m)) return 'The requested start is in the past.';
-  if (/shifts_check|shift_requests_check/.test(m)) return 'The end time shall be after the start time.';
+  if (/half_hours/.test(m)) return 'Shifts start and end on :00 or :30.';
+  if (/shifts_check|shift_requests_check/.test(m)) return 'The end shall be after the start.';
   if (/capacity_check/.test(m)) return 'The capacity shall be at least 1.';
   return ERRORS[m] ?? friendlyError(error);
 }
@@ -70,13 +83,33 @@ const ui = { week: 0, onlyFree: false, onlyMine: false, showRequests: true };
 const firstMonday = () => iso(dn(mondayOf(TODAY)) + ui.week * 7);
 
 /* ---------- data ---------- */
+// Half-hour slots of a shift with participants and supervisors
+function buildSlots(shift, bookings, now) {
+  const out = [];
+  for (let t = Date.parse(shift.starts_at); t < Date.parse(shift.ends_at); t += SLOT_MS) {
+    const inSlot = bookings.filter((b) => Date.parse(b.starts_at) <= t && Date.parse(b.ends_at) > t);
+    const participants = inSlot.filter((b) => b.role === 'participant');
+    const supervisors = inSlot.filter((b) => b.role === 'supervisor');
+    out.push({
+      t,
+      label: formatTime(new Date(t)),
+      participants,
+      supervisors,
+      free: shift.capacity - participants.length,
+      covered: supervisors.length > 0,
+      started: t <= now,
+    });
+  }
+  return out;
+}
+
 async function load() {
   const from = firstMonday();
   const to = iso(dn(from) + 14);
   const since = new Date(Date.now() - 2 * HISTORY_DAYS * 864e5).toISOString();
   const [s, r, t, a] = await Promise.all([
     supabase.from('shifts')
-      .select('*, tasks(code, name), supervisor:profiles!shifts_supervisor_id_fkey(full_name, email), assignments(user_id, created_at, profiles(full_name, email))')
+      .select('*, tasks(code, name), assignments(user_id, role, starts_at, ends_at, created_at, profiles(full_name, email))')
       .gte('starts_at', zonedToIso(from, '00:00'))
       .lt('starts_at', zonedToIso(to, '00:00'))
       .order('starts_at'),
@@ -90,25 +123,32 @@ async function load() {
   const error = s.error || r.error || t.error || a.error;
   if (error) throw error;
 
-  const now = new Date();
+  const now = Date.now();
   SHIFTS = s.data.map((x) => {
     const start = zonedParts(x.starts_at);
     const end = zonedParts(x.ends_at);
-    const people = x.assignments
-      .slice().sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
-      .map((a) => ({ id: a.user_id, name: personName(a.profiles) }));
+    const bookings = x.assignments
+      .map((b) => ({ ...b, name: personName(b.profiles) }))
+      .sort((p, q) => (p.starts_at === q.starts_at ? (p.created_at < q.created_at ? -1 : 1) : p.starts_at < q.starts_at ? -1 : 1));
+    const slots = buildSlots(x, bookings, now);
+    const own = bookings.find((b) => b.user_id === ME) ?? null;
+    const future = slots.filter((sl) => !sl.started);
     return {
       ...x,
       date: start.date,
       startMin: start.minutes,
       endMin: end.date === start.date ? end.minutes : DAY_END + 1,
-      people,
-      booked: people.length,
-      supervisorName: x.supervisor ? personName(x.supervisor) : null,
-      supervising: x.supervisor_id === ME,
-      mine: people.some((p) => p.id === ME) || x.supervisor_id === ME,
-      started: new Date(x.starts_at) <= now,
-      full: people.length >= x.capacity,
+      bookings,
+      participants: bookings.filter((b) => b.role === 'participant'),
+      supervisors: bookings.filter((b) => b.role === 'supervisor'),
+      slots,
+      own,
+      mine: Boolean(own),
+      maxBooked: Math.max(0, ...slots.map((sl) => sl.participants.length)),
+      bookable: future.some((sl) => sl.covered && sl.free > 0),
+      uncovered: future.some((sl) => !sl.covered),
+      started: new Date(x.starts_at) <= new Date(now),
+      ended: new Date(x.ends_at) <= new Date(now),
     };
   });
   REQUESTS = r.data.map((x) => {
@@ -116,12 +156,12 @@ async function load() {
     const end = zonedParts(x.ends_at);
     return {
       ...x,
-      kind: 'request',
       date: start.date,
       startMin: start.minutes,
       endMin: end.date === start.date ? end.minutes : DAY_END + 1,
       own: x.requested_by === ME,
-      started: new Date(x.starts_at) <= now,
+      started: new Date(x.starts_at) <= new Date(now),
+      kind: 'request',
     };
   });
   TASKS = t.data.sort((x, y) => x.code.localeCompare(y.code, 'en', { numeric: true }));
@@ -154,12 +194,11 @@ function renderTools() {
 
 /* ---------- grid ---------- */
 function visible(s) {
-  if (ui.onlyFree && (s.full || s.started)) return false;
+  if (ui.onlyFree && !s.bookable) return false;
   if (ui.onlyMine && !s.mine) return false;
   return true;
 }
 
-// Pending requests shown on the calendar (red, dashed)
 function visibleRequest(r) {
   if (r.status !== 'pending' || !ui.showRequests || ui.onlyFree) return false;
   if (ui.onlyMine && !r.own) return false;
@@ -176,21 +215,30 @@ function requestBlock(r, style = '') {
 }
 
 function blockClass(s) {
-  return `${s.mine ? 'mine' : s.full ? 'full' : 'free'}${s.started ? ' past' : ''}`;
+  return `${s.mine ? 'mine' : s.bookable ? 'free' : 'full'}${s.ended ? ' past' : ''}`;
+}
+
+// One mark per half-hour slot: free / full / no supervisor / mine
+function slotStrip(s) {
+  return `<span class="strip">${s.slots.map((sl) => {
+    const mineHere = s.own && Date.parse(s.own.starts_at) <= sl.t && Date.parse(s.own.ends_at) > sl.t;
+    const cls = mineHere ? 'mine' : !sl.covered ? 'nosup' : sl.free <= 0 ? 'full' : 'free';
+    return `<i class="${cls}" title="${esc(`${sl.label} · ${sl.participants.length}/${s.capacity}${sl.covered ? '' : ' · no supervisor'}`)}"></i>`;
+  }).join('')}</span>`;
 }
 
 function blockText(s) {
   const task = s.tasks ? `<span class="c">${esc(s.tasks.code)}</span> ${esc(s.tasks.name)}` : '';
-  return `<span class="seats">${s.booked}/${s.capacity}</span>
-    <span class="t">${formatTime(s.starts_at)}–${formatTime(s.ends_at)}</span><br>${task}
+  return `<span class="seats">${s.maxBooked}/${s.capacity}</span>
+    <span class="t">${formatTime(s.starts_at)}–${formatTime(s.ends_at)}</span>${slotStrip(s)}${task}
     ${s.location ? `<br><span class="n">${esc(s.location)}</span>` : ''}
-    <br><span class="n">Sup.: ${esc(s.supervisorName ?? '—')}</span>
-    ${s.people.length ? `<br><span class="n">${esc(s.people.map((p) => p.name).join(', '))}</span>` : ''}`;
+    <br><span class="n${s.uncovered ? ' warn' : ''}">Sup.: ${esc(s.supervisors.map((b) => b.name).join(', ') || 'none')}</span>
+    ${s.participants.length ? `<br><span class="n">${esc(s.participants.map((b) => b.name).join(', '))}</span>` : ''}`;
 }
 
-// Assigns side-by-side lanes to overlapping shifts of the same day.
-function lanes(dayShifts) {
-  const sorted = dayShifts.slice().sort((a, b) => a.startMin - b.startMin);
+// Assigns side-by-side lanes to overlapping items of the same day.
+function lanes(items) {
+  const sorted = items.slice().sort((a, b) => a.startMin - b.startMin);
   const laneEnds = [];
   sorted.forEach((s) => {
     let lane = laneEnds.findIndex((end) => end <= s.startMin);
@@ -202,15 +250,25 @@ function lanes(dayShifts) {
   return sorted;
 }
 
+function itemHtml(s, style = '') {
+  if (s.kind === 'request') return requestBlock(s, style);
+  return `<button type="button" class="sblock ${blockClass(s)}" data-shift="${s.id}"${style}
+    title="${esc(`${formatTime(s.starts_at)}–${formatTime(s.ends_at)} ${s.tasks?.code ?? ''} · up to ${s.maxBooked}/${s.capacity} per slot`)}">${blockText(s)}</button>`;
+}
+
 function weekHtml(monday) {
   const days = DAYS.map((label, i) => ({ label, date: iso(dn(monday) + i) }));
   const height = ((DAY_END - DAY_START) / SLOT) * SLOT_PX;
   const outside = [];
 
+  // Labels at 08:30, every full hour, 18:30
   let times = '';
-  for (let m = DAY_START; m <= DAY_END; m += 60) {
+  const marks = [DAY_START];
+  for (let m = Math.ceil(DAY_START / 60) * 60; m < DAY_END; m += 60) marks.push(m);
+  marks.push(DAY_END);
+  marks.forEach((m) => {
     times += `<span style="top:${((m - DAY_START) / SLOT) * SLOT_PX}px">${hhmm(m)}</span>`;
-  }
+  });
 
   let heads = '<div class="corner"></div>';
   let bodies = `<div class="times" style="height:${height}px">${times}</div>`;
@@ -221,34 +279,29 @@ function weekHtml(monday) {
     const isPast = d.date < TODAY;
     heads += `<div class="dhead${isToday ? ' today' : ''}">${d.label} ${formatDate(d.date).slice(0, 5)}</div>`;
 
-    const dayShifts = [
+    const items = [
       ...SHIFTS.filter((s) => s.date === d.date && visible(s)),
       ...REQUESTS.filter((r) => r.date === d.date && visibleRequest(r)),
     ];
-    const inGrid = dayShifts.filter((s) => s.endMin > DAY_START && s.startMin < DAY_END);
-    dayShifts.filter((s) => !inGrid.includes(s)).forEach((s) => outside.push(s));
+    const inGrid = items.filter((s) => s.endMin > DAY_START && s.startMin < DAY_END);
+    items.filter((s) => !inGrid.includes(s)).forEach((s) => outside.push(s));
 
     const blocks = lanes(inGrid).map((s) => {
       const top = ((Math.max(s.startMin, DAY_START) - DAY_START) / SLOT) * SLOT_PX;
       const bottom = ((Math.min(s.endMin, DAY_END) - DAY_START) / SLOT) * SLOT_PX;
       const w = 100 / s.lanes;
-      const style = ` style="top:${top + 1}px;height:${Math.max(bottom - top - 2, 18)}px;left:calc(${s.lane * w}% + 2px);width:calc(${w}% - 4px)"`;
-      if (s.kind === 'request') return requestBlock(s, style);
-      return `<button type="button" class="sblock ${blockClass(s)}" data-shift="${s.id}"
-        style="top:${top + 1}px;height:${Math.max(bottom - top - 2, 18)}px;left:calc(${s.lane * w}% + 2px);width:calc(${w}% - 4px)"
-        title="${esc(`${formatTime(s.starts_at)}–${formatTime(s.ends_at)} ${s.tasks?.code ?? ''} ${s.booked}/${s.capacity}`)}">${blockText(s)}</button>`;
+      return itemHtml(s, ` style="top:${top + 1}px;height:${Math.max(bottom - top - 2, 18)}px;left:calc(${s.lane * w}% + 2px);width:calc(${w}% - 4px)"`);
     }).join('');
     bodies += `<div class="dbody${isToday ? ' today' : ''}${isPast ? ' past' : ''}" data-date="${d.date}" style="height:${height}px">${blocks}</div>`;
 
     list += `<div class="lday${isToday ? ' today' : ''}">${d.label} ${formatDate(d.date)}</div>` +
-      (dayShifts.length
-        ? dayShifts.slice().sort((a, b) => a.startMin - b.startMin).map((s) => (s.kind === 'request' ? requestBlock(s)
-          : `<button type="button" class="sblock ${blockClass(s)}" data-shift="${s.id}">${blockText(s)}</button>`)).join('')
+      (items.length
+        ? items.slice().sort((a, b) => a.startMin - b.startMin).map((s) => itemHtml(s)).join('')
         : '<p class="none">No shift.</p>');
   });
 
   const out = outside.length
-    ? `<p class="outside">Outside the 08:00–18:00 grid: ${outside.map((s) =>
+    ? `<p class="outside">Outside the 08:30–18:30 grid: ${outside.map((s) =>
       `<a href="#" ${s.kind === 'request' ? `data-request="${s.id}"` : `data-shift="${s.id}"`}>${s.kind === 'request' ? 'Request ' : ''}${formatDateTime(s.starts_at)} ${esc(s.tasks?.code ?? '')}</a>`).join(', ')}</p>`
     : '';
 
@@ -257,7 +310,7 @@ function weekHtml(monday) {
     <div class="wlist">${list}</div>${out}</section>`;
 }
 
-/* ---------- requests ---------- */
+/* ---------- requests list ---------- */
 function requestsHtml() {
   const from = firstMonday();
   const to = iso(dn(from) + 14);
@@ -270,17 +323,9 @@ function requestsHtml() {
   const when = (r) => `${formatDate(r.starts_at)}<br><span class="hint">${formatTime(r.starts_at)}–${formatTime(r.ends_at)}</span>`;
   const task = (r) => (r.tasks ? `${esc(r.tasks.code)} ${esc(r.tasks.name)}` : '<span class="hint">—</span>');
 
-  const pendingRows = pending.map((r) => {
-    const own = r.requested_by === ME;
-    const acts = [
-      ADMIN ? `<button type="button" data-act="approve" data-req="${r.id}">Approve</button>` : '',
-      ADMIN ? `<button type="button" class="danger" data-act="reject" data-req="${r.id}">Reject</button>` : '',
-      own ? `<button type="button" class="secondary" data-act="withdraw" data-req="${r.id}">Withdraw</button>` : '',
-    ].join('');
-    return `<tr><td>${esc(personName(r.requester))}</td><td>${when(r)}</td><td>${task(r)}</td>
+  const pendingRows = pending.map((r) => `<tr><td>${esc(personName(r.requester))}</td><td>${when(r)}</td><td>${task(r)}</td>
       <td>${esc(r.description)}</td><td>${esc(r.location ?? '')}</td><td>${formatDate(r.created_at)}</td>
-      <td class="actions">${acts}</td></tr>`;
-  }).join('');
+      <td class="actions"><button type="button" class="secondary" data-request="${r.id}">Open</button></td></tr>`).join('');
 
   const histRows = history.map((r) => `<tr><td><span class="st ${r.status}">${r.status}</span></td>
     <td>${esc(personName(r.requester))}</td><td>${when(r)}</td><td>${task(r)}</td><td>${esc(r.description)}</td>
@@ -325,32 +370,48 @@ function modalError(box, text) {
 }
 
 /* ---------- shift details ---------- */
+function slotTable(s) {
+  return `<div class="table-scroll"><table class="slots"><thead><tr><th>Slot</th><th>Participants</th><th>Supervisors</th></tr></thead><tbody>
+    ${s.slots.map((sl) => `<tr class="${sl.started ? 'past' : ''}">
+      <td class="mono">${sl.label}–${formatTime(new Date(sl.t + SLOT_MS))}</td>
+      <td><span class="${sl.free <= 0 ? 'bad' : ''}">${sl.participants.length}/${s.capacity}</span>
+        ${sl.participants.length ? `<span class="hint"> ${esc(sl.participants.map((b) => b.name).join(', '))}</span>` : ''}</td>
+      <td>${sl.covered ? esc(sl.supervisors.map((b) => b.name).join(', ')) : '<span class="bad">none</span>'}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function bookingList(s) {
+  if (!s.bookings.length) return '<p class="hint">Nobody booked yet.</p>';
+  return `<ul class="people">${s.bookings.map((b) => `<li><span>${esc(b.name)}${b.user_id === ME ? ' (you)' : ''}
+      <span class="hint">· ${b.role} · ${formatTime(b.starts_at)}–${formatTime(b.ends_at)}</span></span>
+      ${ADMIN ? `<button type="button" class="danger" data-act="remove" data-user="${b.user_id}">Remove</button>` : ''}</li>`).join('')}</ul>`;
+}
+
 function openShift(id) {
   const s = SHIFTS.find((x) => x.id === id);
   if (!s) return;
-  const canBook = !s.started && !s.mine && !s.full && !s.supervising;
-  const canCancel = !s.started && s.people.some((p) => p.id === ME);
-  const people = s.people.length
-    ? `<ul class="people">${s.people.map((p) => `<li><span>${esc(p.name)}${p.id === ME ? ' (you)' : ''}</span>
-        ${ADMIN ? `<button type="button" class="danger" data-act="remove-person" data-user="${p.id}">Remove</button>` : ''}</li>`).join('')}</ul>`
-    : '<p class="hint">Nobody booked yet.</p>';
+  const ownFuture = s.own && Date.parse(s.own.starts_at) > Date.now();
+  const canBook = !s.own && s.slots.some((sl) => !sl.started && (ADMIN || (sl.covered && sl.free > 0)));
   const box = openModal(`
     <h2>${s.tasks ? `${esc(s.tasks.code)} – ${esc(s.tasks.name)}` : 'Shift'}</h2>
     <p class="meta">${DAYS[weekday(s.date)] ?? ''} ${formatDate(s.starts_at)}, ${formatTime(s.starts_at)}–${formatTime(s.ends_at)}
-      · ${s.booked}/${s.capacity} booked${s.started ? ' · started or past' : ''}</p>
+      · capacity ${s.capacity} participants per half-hour slot (supervisors not counted)${s.ended ? ' · past' : ''}</p>
     <dl>
       ${s.location ? `<dt>Location</dt><dd>${esc(s.location)}</dd>` : ''}
       ${s.description ? `<dt>Work to do</dt><dd>${esc(s.description)}</dd>` : ''}
       ${s.notes ? `<dt>Notes</dt><dd>${esc(s.notes)}</dd>` : ''}
-      <dt>Supervisor</dt><dd>${s.supervisorName ? `${esc(s.supervisorName)}${s.supervising ? ' (you)' : ''}` : '<span class="bad">not set: edit the shift</span>'}</dd>
+      ${s.own ? `<dt>Your booking</dt><dd>${formatTime(s.own.starts_at)}–${formatTime(s.own.ends_at)} as ${s.own.role}</dd>` : ''}
     </dl>
-    <h2 style="font-size:.95rem">Participants (${s.booked}/${s.capacity}; the supervisor is not counted)</h2>${people}
+    ${slotTable(s)}
+    <h2 style="font-size:.95rem;margin-top:12px">Bookings</h2>${bookingList(s)}
     <p class="message" role="alert" hidden></p>
     <div class="buttons">
       ${ADMIN ? '<button type="button" class="danger" data-act="delete-shift">Delete shift</button>' : ''}
       ${ADMIN ? '<button type="button" class="secondary" data-act="edit-shift">Edit</button>' : ''}
-      ${canCancel ? '<button type="button" class="danger" data-act="cancel-booking">Cancel my booking</button>' : ''}
-      ${canBook ? '<button type="button" data-act="book">Book</button>' : ''}
+      ${ADMIN && !s.ended ? '<button type="button" class="secondary" data-act="add-sup">Add supervisor…</button>' : ''}
+      ${ownFuture ? '<button type="button" class="danger" data-act="cancel-own">Cancel my booking</button>' : ''}
+      ${ownFuture ? '<button type="button" class="secondary" data-act="change-own">Change my hours…</button>' : ''}
+      ${canBook ? `<button type="button" data-act="book">${ADMIN ? 'Join as supervisor…' : 'Book…'}</button>` : ''}
       <button type="button" class="secondary" data-act="close">Close</button>
     </div>`);
 
@@ -360,24 +421,23 @@ function openShift(id) {
     const act = b.dataset.act;
     if (act === 'close') { closeModal(); return; }
     if (act === 'edit-shift') { openShiftForm(s); return; }
+    if (act === 'book' || act === 'change-own') { openBookingForm(s, ME); return; }
+    if (act === 'add-sup') { openBookingForm(s, null); return; }
     b.disabled = true;
     let error = null;
     let message = '';
-    if (act === 'book') {
-      ({ error } = await supabase.rpc('book_shift', { p_shift_id: s.id }));
-      message = 'Booked.';
-    } else if (act === 'cancel-booking') {
+    if (act === 'cancel-own') {
       const res = await supabase.from('assignments').delete().eq('shift_id', s.id).eq('user_id', ME).select();
       error = res.error;
-      if (!error && !res.data.length) error = { message: 'Shift already started' };
+      if (!error && !res.data.length) error = { message: 'Booking already started' };
       message = 'Booking cancelled.';
-    } else if (act === 'remove-person') {
-      const name = s.people.find((p) => p.id === b.dataset.user)?.name ?? '';
-      if (!window.confirm(`Remove ${name} from this shift?`)) { b.disabled = false; return; }
+    } else if (act === 'remove') {
+      const who = s.bookings.find((x) => x.user_id === b.dataset.user);
+      if (!window.confirm(`Remove ${who?.name ?? ''} (${who?.role}) from this shift?`)) { b.disabled = false; return; }
       ({ error } = await supabase.from('assignments').delete().eq('shift_id', s.id).eq('user_id', b.dataset.user));
-      message = 'Person removed.';
+      message = 'Booking removed.';
     } else if (act === 'delete-shift') {
-      const warn = s.booked ? `\n\n${s.booked} booking(s) will be deleted.` : '';
+      const warn = s.bookings.length ? `\n\n${s.bookings.length} booking(s) will be deleted.` : '';
       if (!window.confirm(`Delete this shift?${warn}`)) { b.disabled = false; return; }
       ({ error } = await supabase.from('shifts').delete().eq('id', s.id));
       message = 'Shift deleted.';
@@ -385,6 +445,109 @@ function openShift(id) {
     if (error) { b.disabled = false; modalError(box, errorText(error)); return; }
     closeModal();
     await reload(message);
+  });
+}
+
+/* ---------- booking of own hours (or of another admin as supervisor) ---------- */
+// userId = ME: own booking; userId = null: admin chooses another admin as supervisor
+function openBookingForm(s, userId) {
+  const chooseAdmin = userId === null;
+  const target = () => (chooseAdmin ? box.querySelector('#b-user').value : ME);
+  const role = chooseAdmin || ADMIN ? 'supervisor' : 'participant';
+  const existing = (uid) => s.bookings.find((x) => x.user_id === uid) ?? null;
+  const future = s.slots.filter((sl) => !sl.started);
+  if (!future.length) { toast('The shift has already started.'); return; }
+
+  // Slot usable by the target: not started; for participants also covered and with a free seat
+  const usable = (sl, uid) => {
+    if (sl.started) return false;
+    if (role === 'supervisor') return true;
+    const mineHere = sl.participants.some((x) => x.user_id === uid);
+    return sl.covered && (sl.free > 0 || mineHere);
+  };
+  const own = existing(ME);
+  const init = own && !chooseAdmin
+    ? { from: Date.parse(own.starts_at), to: Date.parse(own.ends_at) }
+    : (() => {
+      const first = future.find((sl) => usable(sl, ME)) ?? future[0];
+      return { from: first.t, to: first.t + SLOT_MS };
+    })();
+
+  const fromOpts = future.map((sl) => `<option value="${sl.t}"${sl.t === init.from ? ' selected' : ''}>${sl.label}</option>`).join('');
+  const toOpts = future.map((sl) => `<option value="${sl.t + SLOT_MS}"${sl.t + SLOT_MS === init.to ? ' selected' : ''}>${formatTime(new Date(sl.t + SLOT_MS))}</option>`).join('');
+  const others = ADMINS.filter((a) => !s.bookings.some((x) => x.user_id === a.id));
+
+  const box = openModal(`
+    <h2>${chooseAdmin ? 'Add supervisor' : own ? 'Change my hours' : role === 'supervisor' ? 'Join as supervisor' : 'Book slots'}</h2>
+    <p class="meta">${s.tasks ? `${esc(s.tasks.code)} – ${esc(s.tasks.name)} · ` : ''}${DAYS[weekday(s.date)] ?? ''} ${formatDate(s.starts_at)},
+      shift ${formatTime(s.starts_at)}–${formatTime(s.ends_at)}</p>
+    <form novalidate>
+      ${chooseAdmin ? `<label for="b-user">Admin</label><select id="b-user">${others.length
+        ? others.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')
+        : '<option value="">No other admin available</option>'}</select>` : ''}
+      <div class="row" style="grid-template-columns:1fr 1fr">
+        <div><label for="b-from">From</label><select id="b-from">${fromOpts}</select></div>
+        <div><label for="b-to">To</label><select id="b-to">${toOpts}</select></div>
+      </div>
+      <div id="b-hours"></div>
+      <p id="b-summary" class="message info"></p>
+      <p class="message" role="alert" hidden></p>
+      <div class="buttons"><button type="button" class="secondary" data-act="close">Cancel</button>
+        <button type="submit" id="b-ok">Confirm</button></div>
+    </form>`);
+
+  const fromSel = box.querySelector('#b-from');
+  const toSel = box.querySelector('#b-to');
+  const summary = box.querySelector('#b-summary');
+  const okBtn = box.querySelector('#b-ok');
+
+  const update = () => {
+    const uid = target();
+    const from = Number(fromSel.value);
+    const to = Number(toSel.value);
+    const range = future.filter((sl) => sl.t >= from && sl.t < to);
+    box.querySelector('#b-hours').innerHTML = `<ul class="hours">${future.map((sl) => {
+      const inRange = sl.t >= from && sl.t < to;
+      const state = role === 'supervisor' ? (sl.covered ? `supervised by ${sl.supervisors.map((x) => x.name).join(', ')}` : 'no supervisor')
+        : !sl.covered ? 'no supervisor' : `${sl.free} free of ${s.capacity}`;
+      return `<li class="${inRange ? 'sel' : ''}${usable(sl, uid) ? '' : ' no'}"><span class="mono">${sl.label}</span> ${esc(state)}</li>`;
+    }).join('')}</ul>`;
+    let problem = '';
+    if (chooseAdmin && !uid) problem = 'No other admin available.';
+    else if (to <= from) problem = 'The end shall be after the start.';
+    else if (range.some((sl) => !usable(sl, uid))) {
+      problem = range.some((sl) => !sl.covered) ? 'At least one selected slot has no supervisor yet.' : 'At least one selected slot is full.';
+    }
+    
+    const who = chooseAdmin ? (ADMINS.find((a) => a.id === uid)?.name ?? '') : 'You';
+    summary.className = `message ${problem ? 'error' : 'info'}`;
+    summary.textContent = problem ||
+      `${who} ${chooseAdmin ? 'will be booked' : own ? 'will be booked' : 'book'} ${formatTime(new Date(from))}–${formatTime(new Date(to))} ` +
+      `(${durationText(to - from)}) as ${role}, ${DAYS[weekday(s.date)] ?? ''} ${formatDate(s.starts_at)}.`;
+    okBtn.disabled = Boolean(problem);
+  };
+  fromSel.addEventListener('change', () => {
+    if (Number(toSel.value) <= Number(fromSel.value)) toSel.value = String(Number(fromSel.value) + SLOT_MS);
+    update();
+  });
+  toSel.addEventListener('change', update);
+  box.querySelector('#b-user')?.addEventListener('change', update);
+  box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
+  update();
+
+  box.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    okBtn.disabled = true;
+    const args = {
+      p_shift_id: s.id,
+      p_starts_at: new Date(Number(fromSel.value)).toISOString(),
+      p_ends_at: new Date(Number(toSel.value)).toISOString(),
+    };
+    if (chooseAdmin) args.p_user_id = target();
+    const { error } = await supabase.rpc('book_shift', args);
+    if (error) { okBtn.disabled = false; modalError(box, errorText(error)); return; }
+    closeModal();
+    await reload(own && !chooseAdmin ? 'Booking changed.' : 'Booked.');
   });
 }
 
@@ -404,9 +567,9 @@ function openRequest(id) {
     ${r.started ? '<p class="hint">The requested start has passed: the request can only be rejected or withdrawn.</p>' : ''}
     <p class="message" role="alert" hidden></p>
     <div class="buttons">
-      ${ADMIN ? '<button type="button" class="danger" data-act="reject">Reject</button>' : ''}
-      ${ADMIN && !r.started ? '<button type="button" data-act="approve">Approve…</button>' : ''}
-      ${r.own ? '<button type="button" class="secondary" data-act="withdraw">Withdraw</button>' : ''}
+      ${ADMIN && r.status === 'pending' ? '<button type="button" class="danger" data-act="reject">Reject</button>' : ''}
+      ${ADMIN && r.status === 'pending' && !r.started ? '<button type="button" data-act="approve">Approve…</button>' : ''}
+      ${r.own && r.status === 'pending' ? '<button type="button" class="secondary" data-act="withdraw">Withdraw</button>' : ''}
       <button type="button" class="secondary" data-act="close">Close</button>
     </div>`);
   box.addEventListener('click', async (e) => {
@@ -428,9 +591,8 @@ function openRequest(id) {
 
 /* ---------- forms ---------- */
 function supervisorSelect(selected) {
-  return `<label for="f-sup">Supervisor (admin, not counted in the capacity)</label><select id="f-sup" required>
-    <option value="">— select —</option>${ADMINS.map((x) =>
-    `<option value="${x.id}"${x.id === selected ? ' selected' : ''}>${esc(x.name)}${x.id === ME ? ' (you)' : ''}</option>`).join('')}</select>`;
+  return `<label for="f-sup">Supervisor (admin, not counted in the capacity; others can join later)</label><select id="f-sup">
+    ${ADMINS.map((x) => `<option value="${x.id}"${x.id === selected ? ' selected' : ''}>${esc(x.name)}${x.id === ME ? ' (you)' : ''}</option>`).join('')}</select>`;
 }
 
 function taskOptions(selected, optional) {
@@ -438,11 +600,20 @@ function taskOptions(selected, optional) {
     TASKS.map((t) => `<option value="${t.id}"${t.id === selected ? ' selected' : ''}>${esc(t.code)} – ${esc(t.name.slice(0, 70))}${t.status === 'done' ? ' (done)' : ''}</option>`).join('');
 }
 
+// Date and half-hour selectors (08:30-18:30)
 function slotFields(v) {
+  const timeOpts = (first, last, sel) => {
+    let o = '';
+    for (let m = first; m <= last; m += SLOT) {
+      const t = hhmm(m);
+      o += `<option value="${t}"${t === sel ? ' selected' : ''}>${t}</option>`;
+    }
+    return o;
+  };
   return `<div class="row">
       <div><label for="f-date">Date</label><input id="f-date" type="date" value="${esc(v.date ?? '')}" required></div>
-      <div><label for="f-start">Start</label><input id="f-start" type="time" step="1800" min="08:00" max="18:00" value="${esc(v.start ?? '')}" required></div>
-      <div><label for="f-end">End</label><input id="f-end" type="time" step="1800" min="08:00" max="18:00" value="${esc(v.end ?? '')}" required></div>
+      <div><label for="f-start">Start</label><select id="f-start">${timeOpts(DAY_START, DAY_END - SLOT, v.start ?? '09:00')}</select></div>
+      <div><label for="f-end">End</label><select id="f-end">${timeOpts(DAY_START + SLOT, DAY_END, v.end ?? '11:00')}</select></div>
     </div>`;
 }
 
@@ -450,27 +621,35 @@ function slotFields(v) {
 function checkSlot(date, start, end) {
   if (!date || !start || !end) return 'Date, start and end are required.';
   if (weekday(date) > 4) return 'Shifts are possible from Monday to Friday only.';
-  if (toMin(start) < DAY_START || toMin(end) > DAY_END) return 'Shifts are possible between 08:00 and 18:00 only.';
-  if (toMin(end) <= toMin(start)) return 'The end time shall be after the start time.';
+  if (toMin(start) < DAY_START || toMin(end) > DAY_END) return `Shifts are possible between ${hhmm(DAY_START)} and ${hhmm(DAY_END)} only.`;
+  if (toMin(start) % SLOT || toMin(end) % SLOT) return 'Shifts start and end on :00 or :30.';
+  if (toMin(end) <= toMin(start)) return 'The end shall be after the start.';
   if (zonedToIso(date, start) <= new Date().toISOString()) return 'The start shall be in the future.';
   return null;
 }
 
 const val = (box, id) => box.querySelector(`#${id}`).value.trim();
+const floorSlot = (min) => hhmm(Math.max(DAY_START, Math.floor(min / SLOT) * SLOT));
 
-// New shift (s undefined, prefill optional) or edit of an existing shift (admin)
+// Highest number of participants per slot if the given users are removed
+function maxAfterRemoval(s, removed) {
+  return Math.max(0, ...s.slots.map((sl) => sl.participants.filter((b) => !removed.includes(b.user_id)).length));
+}
+
+// New shift (s undefined) or edit of an existing shift (admin)
 function openShiftForm(s, prefill = {}) {
   const v = s
     ? { date: s.date, start: formatTime(s.starts_at), end: formatTime(s.ends_at), task: s.task_id, capacity: s.capacity,
-      location: s.location, description: s.description, notes: s.notes, supervisor: s.supervisor_id }
-    : { capacity: 1, supervisor: ME, ...prefill };
+      location: s.location, description: s.description, notes: s.notes }
+    : { capacity: 1, ...prefill };
   const box = openModal(`
     <h2>${s ? 'Edit shift' : 'New shift'}</h2>
     <form novalidate>
       ${slotFields(v)}
+      ${s ? '<p class="hint">Changing the times keeps the bookings inside the new times; supervisors booked on the whole shift follow the new times.</p>' : ''}
       <label for="f-task">Task</label><select id="f-task" required>${taskOptions(v.task, false)}</select>
-      ${supervisorSelect(v.supervisor)}
-      <label for="f-cap">Capacity (participants)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="${esc(v.capacity)}" required>
+      ${s ? '' : supervisorSelect(ME)}
+      <label for="f-cap">Capacity (participants per half-hour slot)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="${esc(v.capacity)}" required>
       <div class="removal" id="f-removal" hidden></div>
       <label for="f-loc">Location</label><input id="f-loc" type="text" maxlength="80" value="${esc(v.location ?? '')}">
       <label for="f-desc">Work to do</label><textarea id="f-desc" maxlength="1000">${esc(v.description ?? '')}</textarea>
@@ -483,12 +662,12 @@ function openShiftForm(s, prefill = {}) {
   const removal = box.querySelector('#f-removal');
   const updateRemoval = () => {
     const cap = Number(capInput.value);
-    const excess = s ? s.booked - cap : 0;
-    if (!s || !(cap >= 1) || excess <= 0) { removal.hidden = true; removal.innerHTML = ''; return; }
+    if (!s || !(cap >= 1) || s.maxBooked <= cap) { removal.hidden = true; removal.innerHTML = ''; return; }
     const checked = new Set([...removal.querySelectorAll('input:checked')].map((i) => i.value));
     removal.hidden = false;
-    removal.innerHTML = `<p style="margin:0 0 4px">Select the <strong>${excess}</strong> person(s) to remove:</p>` +
-      s.people.map((p) => `<label><input type="checkbox" value="${p.id}"${checked.has(p.id) ? ' checked' : ''}> ${esc(p.name)}</label>`).join('');
+    removal.innerHTML = `<p style="margin:0 0 4px">In some slots more than <strong>${cap}</strong> participants are booked. Select the participants to remove:</p>` +
+      s.participants.map((p) => `<label><input type="checkbox" value="${p.user_id}"${checked.has(p.user_id) ? ' checked' : ''}>
+        ${esc(p.name)} (${formatTime(p.starts_at)}–${formatTime(p.ends_at)})</label>`).join('');
   };
   capInput.addEventListener('input', updateRemoval);
   box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
@@ -502,32 +681,31 @@ function openShiftForm(s, prefill = {}) {
     const slotError = slotChanged ? checkSlot(date, start, end) : null;
     if (slotError) { modalError(box, slotError); return; }
     if (!taskId) { modalError(box, 'Select a task.'); return; }
-    if (!val(box, 'f-sup')) { modalError(box, 'Select the supervising admin.'); return; }
-    if (s && s.people.some((p) => p.id === val(box, 'f-sup'))) { modalError(box, 'The selected supervisor is booked as participant: remove the booking first.'); return; }
     if (!(capacity >= 1 && capacity <= MAX_CAPACITY)) { modalError(box, `The capacity shall be between 1 and ${MAX_CAPACITY}.`); return; }
 
     const fields = {
       task_id: taskId,
-      starts_at: zonedToIso(date, start),
-      ends_at: zonedToIso(date, end),
       location: val(box, 'f-loc') || null,
       description: val(box, 'f-desc') || null,
       notes: val(box, 'f-notes') || null,
-      supervisor_id: val(box, 'f-sup') || null,
     };
     const submit = box.querySelector('button[type="submit"]');
     submit.disabled = true;
     let error;
     if (!s) {
-      ({ error } = await supabase.from('shifts').insert({ ...fields, capacity }));
+      ({ error } = await supabase.rpc('admin_create_shift', {
+        p_task_id: taskId, p_starts_at: zonedToIso(date, start), p_ends_at: zonedToIso(date, end), p_capacity: capacity,
+        p_location: fields.location, p_description: fields.description, p_notes: fields.notes,
+        p_supervisor: val(box, 'f-sup') || null,
+      }));
     } else {
       const remove = [...removal.querySelectorAll('input:checked')].map((i) => i.value);
-      const excess = s.booked - capacity;
-      if (excess > 0 && remove.length !== excess) {
+      if (capacity < s.maxBooked && maxAfterRemoval(s, remove) > capacity) {
         submit.disabled = false;
-        modalError(box, `Select exactly ${excess} person(s) to remove.`);
+        modalError(box, `Remove participants until at most ${capacity} remain in every slot.`);
         return;
       }
+      if (slotChanged) { fields.starts_at = zonedToIso(date, start); fields.ends_at = zonedToIso(date, end); }
       ({ error } = await supabase.from('shifts').update(fields).eq('id', s.id));
       if (!error && capacity !== s.capacity) {
         ({ error } = await supabase.rpc('admin_set_capacity', {
@@ -562,12 +740,11 @@ function openRequestForm(prefill = {}) {
     if (slotError) { modalError(box, slotError); return; }
     const description = val(box, 'f-desc');
     if (!description) { modalError(box, 'Describe the work to do.'); return; }
-    const taskId = Number(val(box, 'f-task')) || null;
     const submit = box.querySelector('button[type="submit"]');
     submit.disabled = true;
     const { error } = await supabase.from('shift_requests').insert({
       starts_at: zonedToIso(date, start), ends_at: zonedToIso(date, end),
-      task_id: taskId, description, location: val(box, 'f-loc') || null,
+      task_id: Number(val(box, 'f-task')) || null, description, location: val(box, 'f-loc') || null,
     });
     if (error) { submit.disabled = false; modalError(box, errorText(error)); return; }
     closeModal();
@@ -575,19 +752,21 @@ function openRequestForm(prefill = {}) {
   });
 }
 
-// Approval of a request (admin): creates the shift and books the requester
+// Approval of a request (admin): creates the shift, books the supervisor and the requester
 function openApproveForm(r) {
   const v = {
-    date: zonedParts(r.starts_at).date, start: formatTime(r.starts_at), end: formatTime(r.ends_at),
+    date: r.date,
+    start: floorSlot(r.startMin),
+    end: hhmm(Math.ceil(Math.min(r.endMin, DAY_END) / SLOT) * SLOT),
   };
   const box = openModal(`
     <h2>Approve request</h2>
-    <p class="meta">Requested by ${esc(personName(r.requester))} on ${formatDate(r.created_at)}. The shift is created and the requester is booked on it.</p>
+    <p class="meta">Requested by ${esc(personName(r.requester))} on ${formatDate(r.created_at)}. The shift is created, the supervisor and the requester are booked on it.</p>
     <form novalidate>
       ${slotFields(v)}
       <label for="f-task">Task</label><select id="f-task" required>${taskOptions(r.task_id, false)}</select>
       ${supervisorSelect(ME)}
-      <label for="f-cap">Capacity (participants; 1 = requester only)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="1">
+      <label for="f-cap">Capacity (participants per half-hour slot; 1 = requester only)</label><input id="f-cap" type="number" min="1" max="${MAX_CAPACITY}" value="1">
       <label for="f-loc">Location</label><input id="f-loc" type="text" maxlength="80" value="${esc(r.location ?? '')}">
       <label for="f-desc">Work to do</label><textarea id="f-desc" maxlength="1000">${esc(r.description)}</textarea>
       <label for="f-note">Note to the requester</label><input id="f-note" type="text" maxlength="300">
@@ -658,24 +837,16 @@ document.getElementById('app-main').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-act]');
   if (b) {
     const act = b.dataset.act;
-    const req = REQUESTS.find((r) => r.id === Number(b.dataset.req));
     if (act === 'prev') { ui.week -= 1; await reload(); }
     else if (act === 'next') { ui.week += 1; await reload(); }
     else if (act === 'now') { ui.week = 0; await reload(); }
     else if (act === 'reload') await reload('Data reloaded.');
     else if (act === 'new-shift') openShiftForm();
     else if (act === 'new-request') openRequestForm();
-    else if (act === 'approve' && req) openApproveForm(req);
-    else if (act === 'reject' && req) openRejectForm(req);
-    else if (act === 'withdraw' && req) {
-      if (!window.confirm('Withdraw this request?')) return;
-      const { error } = await supabase.rpc('withdraw_request', { p_request_id: req.id });
-      if (error) toast(errorText(error)); else await reload('Request withdrawn.');
-    }
     return;
   }
 
-  // Click on an empty slot of a future day: prefilled new shift (admin) or request (members)
+  // Click on an empty part of a future day: prefilled new shift (admin) or request (members)
   const body = e.target.closest('.dbody');
   if (body && e.target === body && body.dataset.date >= TODAY) {
     const y = e.clientY - body.getBoundingClientRect().top;

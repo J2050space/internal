@@ -1,8 +1,8 @@
 // J2050 Team Management - "notify" Edge Function (Supabase, Deno).
 // Invoked every minute by pg_cron (migration 006). Each run:
-//   1. calendar  - sends/updates/cancels the shift invitation (one invitation per shift,
-//                  all participants as attendees) for shifts changed since the last run
-//   2. reminders - e-mail to each participant 1 h before the shift start
+//   1. calendar  - personal invitation (own booked hours) sent/updated/cancelled for
+//                  the bookings changed since the last run
+//   2. reminders - e-mail to each booked person 1 h before his/her own hours
 //   3. leaders   - e-mail to a leader when tasks are newly assigned to him/her
 //   4. deadlines - e-mail to the leader 7 days and 1 day before a task deadline
 //   5. members   - e-mail to the admins when a registration awaits approval
@@ -77,7 +77,7 @@ function fold(line: string) {
   return parts.join('\r\n ');
 }
 
-type Person = { id: string; email: string; name: string; supervisor?: boolean; seq?: number };
+type Person = { id: string; email: string; name: string; supervisor: boolean; start: string; end: string; seq?: number; hash?: string; content?: Content };
 type Content = { summary: string; start: string; end: string; location: string | null; description: string };
 
 // One invitation per person and shift: UID = shift + person
@@ -105,48 +105,51 @@ function ics(method: 'REQUEST' | 'CANCEL', shiftId: number, person: Person, sequ
 }
 
 /* ---------- 1. calendar invitations ---------- */
-const SHIFT_SELECT = 'id, starts_at, ends_at, location, description, notes, supervisor_id, ' +
-  'supervisor:profiles!shifts_supervisor_id_fkey(email, full_name), tasks(code, name), ' +
-  'assignments(user_id, created_at, profiles(email, full_name))';
+// One personal invitation per person and shift, with the person's own hours
+// (bookings cover whole-hour slots of the shift; supervisors are admins).
+//   new booking                       -> invitation to that person only
+//   own hours or role changed         -> update to that person only
+//   booking cancelled / removed       -> cancellation to that person only
+//   shift details changed (task, location, work, notes) -> update to everyone booked
+//   shift deleted                     -> cancellation to everyone booked
+const SHIFT_SELECT = 'id, starts_at, ends_at, location, description, notes, tasks(code, name), ' +
+  'assignments(user_id, role, starts_at, ends_at, created_at, profiles(email, full_name))';
 
-// Supervisor first, then participants in booking order
+// Supervisors first, then participants; each with own hours
 function people(shift: any): Person[] {
-  const sup: Person[] = shift.supervisor_id && shift.supervisor?.email
-    ? [{ id: shift.supervisor_id, email: shift.supervisor.email, name: shift.supervisor.full_name ?? shift.supervisor.email, supervisor: true }]
-    : [];
-  return sup.concat(participants(shift));
-}
-
-function participants(shift: any): Person[] {
   return (shift.assignments ?? [])
-    .slice().sort((a: any, b: any) => (a.created_at < b.created_at ? -1 : 1))
     .filter((a: any) => a.profiles?.email)
-    .map((a: any) => ({ id: a.user_id, email: a.profiles.email, name: a.profiles.full_name ?? a.profiles.email }));
+    .map((a: any) => ({
+      id: a.user_id, email: a.profiles.email, name: a.profiles.full_name ?? a.profiles.email,
+      supervisor: a.role === 'supervisor', start: a.starts_at, end: a.ends_at, created: a.created_at,
+    }))
+    .sort((x: any, y: any) => (x.supervisor === y.supervisor ? (x.created < y.created ? -1 : 1) : x.supervisor ? -1 : 1));
 }
 
-function contentOf(shift: any, attendees: Person[]): Content {
+const hours = (p: Person) => `${fTime(p.start)}–${fTime(p.end)}`;
+
+function contentFor(shift: any, person: Person, all: Person[]): Content {
   const task = shift.tasks ? `${shift.tasks.code} ${shift.tasks.name}` : 'Lab shift';
+  const list = (sup: boolean) => all.filter((x) => x.supervisor === sup).map((x) => `${x.name} (${hours(x)})`).join(', ');
   const description = [
+    `Your hours: ${hours(person)} as ${person.supervisor ? 'supervisor' : 'participant'}`,
+    `Shift: ${fTime(shift.starts_at)}–${fTime(shift.ends_at)}`,
     `Task: ${task}`,
     shift.description ? `Work to do: ${shift.description}` : '',
     shift.notes ? `Notes: ${shift.notes}` : '',
-    `Supervisor: ${attendees.find((a) => a.supervisor)?.name ?? 'not set'}`,
-    `Participants: ${attendees.filter((a) => !a.supervisor).map((a) => a.name).join(', ') || 'none yet'}`,
+    `Supervisors: ${list(true) || 'none'}`,
+    `Participants: ${list(false) || 'none yet'}`,
     `Details: ${SITE_URL}shifts.html`,
   ].filter(Boolean).join('\n');
-  return { summary: `Lab shift – ${task}`, start: shift.starts_at, end: shift.ends_at, location: shift.location, description };
+  return { summary: `Lab ${person.supervisor ? 'supervision' : 'shift'} – ${task}`, start: person.start, end: person.end,
+    location: shift.location, description };
 }
 
 const whenText = (c: Content) => `${fDay(c.start)}, ${fTime(c.start)}–${fTime(c.end)}`;
 
-// Invitations are personal: each person receives only the messages that concern him/her.
-//   new person in the shift          -> invitation to that person only
-//   person removed / booking cancelled -> cancellation to that person only
-//   shift details changed (time, task, location, work, notes) -> update to everyone in the shift
-//   shift deleted                    -> cancellation to everyone
-// The participants list in the description is the one at the time of sending.
-const coreHash = (shift: any) => JSON.stringify({
-  start: shift.starts_at, end: shift.ends_at, location: shift.location, description: shift.description,
+// What makes an invitation out of date for one person (not the list of the others)
+const personHash = (shift: any, p: Person) => JSON.stringify({
+  start: p.start, end: p.end, role: p.supervisor, location: shift.location, description: shift.description,
   notes: shift.notes, task: shift.tasks ? `${shift.tasks.code} ${shift.tasks.name}` : null,
 });
 
@@ -161,65 +164,58 @@ async function processCalendar() {
     const { data: state, error: e2 } = await db.from('calendar_state').select('*').eq('shift_id', d.shift_id).maybeSingle();
     if (e2) throw e2;
     const prev: Person[] = state?.attendees ?? [];
+    const cancelled: Record<string, number> = { ...(state?.cancelled ?? {}) };
+
+    const cancel = async (p: Person, text: string) => {
+      if (!p.content || new Date(p.end) <= now) return;   // nothing to cancel for past hours
+      const seq = (p.seq ?? 0) + 1;
+      await send([p.email], `Cancelled: ${p.content.summary} (${whenText(p.content)})`, text,
+        { method: 'CANCEL', content: ics('CANCEL', d.shift_id, p, seq, p.content) });
+      cancelled[p.id] = seq;
+      sent += 1;
+    };
 
     if (!shift) {
-      // Shift deleted: cancellation to everyone (future shifts only)
-      if (state?.content && new Date(state.content.end) > now) {
-        for (const p of prev) {
-          await send([p.email], `Cancelled: ${state.content.summary} (${whenText(state.content)})`,
-            `The lab shift of ${whenText(state.content)} has been deleted.`,
-            { method: 'CANCEL', content: ics('CANCEL', d.shift_id, p, (p.seq ?? 0) + 1, state.content) });
-          sent += 1;
-        }
-      }
+      for (const p of prev) await cancel(p, `The lab shift of ${whenText(p.content!)} has been deleted.`);
       await db.from('calendar_state').delete().eq('shift_id', d.shift_id);
     } else if (new Date(shift.ends_at) <= now) {
       // Past shift (e.g. no-show removed by an admin): no message
     } else {
       const current = people(shift);
-      const content = contentOf(shift, current);
-      const hash = coreHash(shift);
-      const changed = Boolean(state) && state.hash !== hash;
       const saved: Person[] = [];
-      // Last sequence used for each person whose invitation was cancelled
-      // (a new booking of the same person shall have a higher sequence)
-      const cancelled: Record<string, number> = { ...(state?.cancelled ?? {}) };
 
-      for (const r of prev.filter((p) => !current.some((c) => c.id === p.id && Boolean(c.supervisor) === Boolean(p.supervisor)))) {
-        // Removed, or role changed (supervisor <-> participant): cancel the old invitation
-        await send([r.email], `Cancelled: ${content.summary} (${whenText(content)})`,
-          `You are no longer ${r.supervisor ? 'the supervisor of' : 'booked on'} the lab shift of ${whenText(content)}.`,
-          { method: 'CANCEL', content: ics('CANCEL', d.shift_id, r, (r.seq ?? 0) + 1, content) });
-        cancelled[r.id] = (r.seq ?? 0) + 1;
-        sent += 1;
+      for (const r of prev.filter((p) => !current.some((c) => c.id === p.id))) {
+        await cancel(r, `You are no longer booked on the lab shift of ${whenText(r.content!)}.`);
       }
 
       for (const c of current) {
-        const old = prev.find((p) => p.id === c.id && Boolean(p.supervisor) === Boolean(c.supervisor));
-        const roleText = c.supervisor ? 'You are the supervisor of this lab shift.' : 'You are booked on this lab shift.';
-        if (!old) {
-          // New person (or a person cancelled earlier who books again: higher sequence)
+        const old = prev.find((p) => p.id === c.id);
+        const hash = personHash(shift, c);
+        const content = contentFor(shift, c, current);
+        const intro = c.supervisor ? 'You are booked as supervisor of a lab shift.' : 'You are booked on a lab shift.';
+        const body = (lead: string) => `${lead}\n\nYour hours: ${whenText(content)}\n` +
+          `${content.location ? `Location: ${content.location}\n` : ''}${content.description}`;
+        if (new Date(c.end) <= now) {
+          saved.push({ ...c, seq: old?.seq ?? 0, hash: old?.hash ?? hash, content: old?.content ?? content });
+        } else if (!old) {
           const seq = cancelled[c.id] !== undefined ? cancelled[c.id] + 1 : 0;
-          await send([c.email], `${content.summary} (${whenText(content)})`,
-            `${roleText}\n\nWhen: ${whenText(content)}\n${content.location ? `Location: ${content.location}\n` : ''}${content.description}`,
+          await send([c.email], `${content.summary} (${whenText(content)})`, body(intro),
             { method: 'REQUEST', content: ics('REQUEST', d.shift_id, c, seq, content) });
-          saved.push({ ...c, seq });
+          saved.push({ ...c, seq, hash, content });
           sent += 1;
-        } else if (changed) {
+        } else if (old.hash !== hash) {
           const seq = (old.seq ?? 0) + 1;
-          await send([c.email], `Updated: ${content.summary} (${whenText(content)})`,
-            `The lab shift has been updated. ${roleText}\n\nWhen: ${whenText(content)}\n` +
-            `${content.location ? `Location: ${content.location}\n` : ''}${content.description}`,
+          await send([c.email], `Updated: ${content.summary} (${whenText(content)})`, body(`Your lab shift has been updated. ${intro}`),
             { method: 'REQUEST', content: ics('REQUEST', d.shift_id, c, seq, content) });
-          saved.push({ ...c, seq });
+          saved.push({ ...c, seq, hash, content });
           sent += 1;
         } else {
-          saved.push({ ...c, seq: old.seq ?? 0 });
+          saved.push({ ...c, seq: old.seq ?? 0, hash: old.hash, content: old.content });
         }
       }
 
       const { error: e3 } = await db.from('calendar_state').upsert({
-        shift_id: d.shift_id, attendees: saved, content, hash, cancelled, updated_at: new Date().toISOString(),
+        shift_id: d.shift_id, attendees: saved, cancelled, updated_at: new Date().toISOString(),
       });
       if (e3) throw e3;
     }
@@ -229,25 +225,26 @@ async function processCalendar() {
   return sent;
 }
 
-/* ---------- 2. reminders 1 h before the shift ---------- */
+/* ---------- 2. reminders 1 h before the own booked hours ---------- */
 async function processReminders() {
   const now = new Date();
   const until = new Date(now.getTime() + REMINDER_MINUTES * 60e3);
   const { data: shifts, error } = await db.from('shifts').select(SHIFT_SELECT)
-    .gt('starts_at', now.toISOString()).lte('starts_at', until.toISOString());
+    .lte('starts_at', until.toISOString()).gt('ends_at', now.toISOString());
   if (error) throw error;
   let sent = 0;
   for (const s of shifts ?? []) {
-    const attendees = people(s);
-    const keys = attendees.map((a) => `reminder:${s.id}:${a.id}:${Date.parse(s.starts_at)}`);
-    if (!keys.length) continue;
+    const all = people(s);
+    const due = all.filter((p) => new Date(p.start) > now && new Date(p.start) <= until);
+    if (!due.length) continue;
+    const keys = due.map((p) => `reminder:${s.id}:${p.id}:${Date.parse(p.start)}`);
     const { data: done } = await db.from('notification_log').select('key').in('key', keys);
     const already = new Set((done ?? []).map((x: any) => x.key));
-    const content = contentOf(s, attendees);
-    for (let i = 0; i < attendees.length; i += 1) {
+    for (let i = 0; i < due.length; i += 1) {
       if (already.has(keys[i])) continue;
-      await send([attendees[i].email], `Reminder: ${content.summary} at ${fTime(s.starts_at)}`,
-        `Your lab shift${attendees[i].supervisor ? ' (as supervisor)' : ''} starts at ${fTime(s.starts_at)} (${fDay(s.starts_at)}).\n\n` +
+      const content = contentFor(s, due[i], all);
+      await send([due[i].email], `Reminder: ${content.summary} at ${fTime(due[i].start)}`,
+        `Your lab hours${due[i].supervisor ? ' as supervisor' : ''} start at ${fTime(due[i].start)} (${fDay(due[i].start)}).\n\n` +
         `${content.location ? `Location: ${content.location}\n` : ''}${content.description}`);
       await db.from('notification_log').insert({ key: keys[i] });
       sent += 1;
