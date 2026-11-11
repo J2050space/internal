@@ -9,7 +9,22 @@
   --sh-grid: #e8ecf1;
   --sh-req: #c62828;
   --sh-req-bg: #fdecea;
+  --sh-past-bg: #f7f8fa;
   --slot: 24px;
+}
+
+/* Dark theme: low-luminance tints keep the hue without bright blocks. */
+:root[data-theme="dark"] {
+  --sh-free: #34c777;
+  --sh-free-bg: #14301f;
+  --sh-full: #9aa3af;
+  --sh-full-bg: #23262c;
+  --sh-mine: #f5822a;
+  --sh-mine-bg: #3a2413;
+  --sh-grid: #2a2d33;
+  --sh-req: #ff6b66;
+  --sh-req-bg: #3a1d1c;
+  --sh-past-bg: #1d2025;
 }
 
 [hidden] { display: none !important; }
@@ -31,6 +46,7 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .sw.req { background: var(--sh-req-bg); border-color: var(--sh-req); border-style: dashed; }
 .sw.nosup { background: repeating-linear-gradient(45deg, var(--sh-req) 0 3px, transparent 3px 6px); border-color: var(--sh-req); }
 .sw.past { background: var(--surface); border-color: var(--border); opacity: .6; }
+:root[data-theme="dark"] .sw.past { border-color: var(--muted); opacity: .8; }
 
 /* ---------- Week grid ---------- */
 .week { margin-bottom: 20px; }
@@ -50,7 +66,7 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
   background-position: 0 var(--slot);
   cursor: pointer;
 }
-.dbody.past { background-color: #f7f8fa; cursor: default; }
+.dbody.past { background-color: var(--sh-past-bg); cursor: default; }
 .dbody.today { background-color: color-mix(in srgb, var(--sh-mine-bg) 35%, var(--surface)); }
 
 .sblock {
@@ -101,7 +117,7 @@ details.hist { margin-top: 12px; }
 details.hist summary { cursor: pointer; color: var(--muted); font-size: 0.875rem; }
 
 /* ---------- Modal ---------- */
-.modal { position: fixed; inset: 0; background: rgba(20, 26, 34, .45); display: grid; place-items: center; padding: 16px; z-index: 40; }
+.modal { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; padding: 16px; z-index: 40; }
 .mbox { background: var(--surface); border-radius: 8px; padding: 20px; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; }
 .mbox h2 { margin: 0 0 4px; font-size: 1.05rem; }
 .mbox .meta { color: var(--muted); font-size: 0.875rem; margin: 0 0 12px; }
