@@ -218,9 +218,10 @@ td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
 .btn-icon svg, .btn-with-icon svg { flex: none; pointer-events: none; }
 
 /* Theme toggle: icon-only when the dark-mode toggle exists, without JS dependency. */
-.theme-toggle { width: 34px; height: 34px; padding: 0; font-size: 0; }
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; font-size: 0; }
 .theme-toggle::before {
   content: '';
+  display: block;
   width: 16px;
   height: 16px;
   background-color: currentColor;
@@ -328,3 +329,5 @@ td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
     box-shadow: 1px 0 0 var(--border);
   }
 }
+/* Keep the toggle icon-only when the responsive header shrinks its buttons. */
+#app-header .user .theme-toggle { width: 34px; height: 34px; padding: 0; font-size: 0; }
