@@ -6,6 +6,21 @@
   src: url('../fonts/play-700.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/geist-sans-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/geist-mono-var.woff2') format('woff2');
+}
+
 :root {
   --bg: #f5f6f8;
   --surface: #ffffff;
@@ -20,7 +35,8 @@
   --success-bg: #e7f4ec;
   --info: #1f4f86;
   --info-bg: #e8f0fa;
-  --font-body: Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
+  --font-body: "Geist", Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --font-display: "Play", Arial, "Helvetica Neue", Helvetica, sans-serif;
   --overlay: rgba(20, 26, 34, .45);
   --input-border: #d8dde4;

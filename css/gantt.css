@@ -11,7 +11,7 @@
   --accent-soft: #e3e9fb;
   --sw-border: rgba(0, 0, 0, .18);
   --bar-border: rgba(0, 0, 0, .22);
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --mono: var(--font-mono);
 }
 
 /* Dark theme: structural lines and status bars need their own values. */

@@ -89,7 +89,7 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .sblock.req .rq { font-weight: 700; color: var(--sh-req); text-transform: uppercase; letter-spacing: .03em; }
 .sblock.past { opacity: .55; }
 .sblock .t { font-weight: 600; font-variant-numeric: tabular-nums; }
-.sblock .c { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent); }
+.sblock .c { font-family: var(--font-mono); color: var(--accent); }
 .sblock .n { color: var(--muted); }
 .sblock .seats { float: right; font-weight: 600; }
 
@@ -147,7 +147,7 @@ details.hist summary { cursor: pointer; color: var(--muted); font-size: 0.875rem
 .strip i.mine  { background: var(--sh-mine); }
 .strip i.nosup { background: repeating-linear-gradient(45deg, var(--sh-req) 0 3px, transparent 3px 6px); border: 1px solid var(--sh-req); }
 .sblock .warn { color: var(--sh-req); font-weight: 600; }
-.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .mbox table.slots { font-size: 0.8125rem; }
 .mbox table.slots tr.past td { opacity: .55; }
 ul.hours { list-style: none; margin: 4px 0; padding: 0; font-size: 0.8125rem; max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
