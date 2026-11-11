@@ -42,6 +42,7 @@ const COARSE = typeof window.matchMedia === 'function' && window.matchMedia('(po
 
 const stored = (key, fallback) => { try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } };
 const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } };
+const DEFAULT_PX = window.matchMedia('(max-width: 640px)').matches ? ZOOMS[0] : 7;
 
 // Message at the bottom, optionally with an action button (e.g. Undo)
 function toast(message, action) {
@@ -106,7 +107,7 @@ let ALL = [];                 // derived, ordered
 const ui = {
   view: 'gantt', dept: 'All', deptView: 'SYS', q: '', hideDone: false, confirmDel: null,
   edit: false,
-  px: ZOOMS.includes(stored('gantt-px', 7)) ? stored('gantt-px', 7) : 7,
+  px: ZOOMS.includes(stored('gantt-px', DEFAULT_PX)) ? stored('gantt-px', DEFAULT_PX) : DEFAULT_PX,
   collapsed: new Set(stored('gantt-collapsed', [])),
 };
 

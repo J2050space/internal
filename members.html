@@ -104,7 +104,7 @@
     }
 
     function table(headers, rows) {
-      const scroller = el('div', null, 'table-scroll');
+      const scroller = el('div', null, 'table-scroll cards');
       const t = document.createElement('table');
       const thead = document.createElement('thead');
       const tr = document.createElement('tr');
@@ -112,7 +112,11 @@
       thead.appendChild(tr);
       t.appendChild(thead);
       const tbody = document.createElement('tbody');
-      rows.forEach((r) => tbody.appendChild(r));
+      rows.forEach((r) => {
+        // Labels let the CSS turn rows into cards on narrow screens.
+        [...r.children].forEach((td, i) => { if (headers[i]) td.dataset.label = headers[i]; });
+        tbody.appendChild(r);
+      });
       t.appendChild(tbody);
       scroller.appendChild(t);
       return scroller;

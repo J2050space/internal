@@ -231,3 +231,100 @@ td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%20%2F%3E%20%3Cpath%20d%3D%22M12%202v2%22%20%2F%3E%20%3Cpath%20d%3D%22M12%2020v2%22%20%2F%3E%20%3Cpath%20d%3D%22m4.93%204.93%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m17.66%2017.66%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22M2%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22M20%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22m6.34%2017.66-1.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m19.07%204.93-1.41%201.41%22%20%2F%3E%3C%2Fsvg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%20%2F%3E%20%3Cpath%20d%3D%22M12%202v2%22%20%2F%3E%20%3Cpath%20d%3D%22M12%2020v2%22%20%2F%3E%20%3Cpath%20d%3D%22m4.93%204.93%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m17.66%2017.66%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22M2%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22M20%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22m6.34%2017.66-1.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m19.07%204.93-1.41%201.41%22%20%2F%3E%3C%2Fsvg%3E");
 }
+
+/* ---------- Responsive layout ---------- */
+
+/* Scrollable data areas: thin scrollbar and an edge hint so the overflow is visible. */
+.table-scroll, .gwrap, .tw {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  box-shadow: inset -12px 0 12px -12px rgba(0, 0, 0, .35);
+}
+.table-scroll::-webkit-scrollbar, .gwrap::-webkit-scrollbar, .tw::-webkit-scrollbar { width: 10px; height: 10px; }
+.table-scroll::-webkit-scrollbar-thumb, .gwrap::-webkit-scrollbar-thumb, .tw::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+.table-scroll::-webkit-scrollbar-track, .gwrap::-webkit-scrollbar-track, .tw::-webkit-scrollbar-track { background: transparent; }
+
+/* Header: two rows under 900px, navigation scrolls instead of stacking. */
+@media (max-width: 899px) {
+  #app-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand user" "nav nav";
+    gap: 6px 12px;
+    padding: 8px 12px;
+  }
+  #app-header .brand { grid-area: brand; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #app-header nav { grid-area: nav; flex-wrap: nowrap; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  #app-header nav::-webkit-scrollbar { display: none; }
+  #app-header nav a { flex: none; white-space: nowrap; padding: 5px 8px; }
+  #app-header .user { grid-area: user; justify-self: end; min-width: 0; }
+  #app-header .user #user-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+@media (max-width: 520px) {
+  #app-header .user #user-name { display: none; }
+  #app-header .user button { padding: 6px 10px; font-size: 0.8125rem; }
+  h1 { font-size: 1.2rem; }
+  #app-main { padding: 12px; }
+  .card { padding: 12px; }
+}
+
+/* Tables become cards under 700px, using data-label set by the page scripts. */
+@media (max-width: 700px) {
+  .table-scroll.cards { overflow: visible; }
+  .table-scroll.cards table,
+  .table-scroll.cards thead,
+  .table-scroll.cards tbody,
+  .table-scroll.cards tr,
+  .table-scroll.cards td { display: block; width: auto; }
+  .table-scroll.cards thead { display: none; }
+  .table-scroll.cards tr {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 4px 12px;
+    margin-bottom: 10px;
+  }
+  .table-scroll.cards td {
+    display: block;
+    position: relative;
+    padding: 5px 0 5px 38%;
+    border: 0;
+    border-bottom: 1px solid var(--bg);
+    text-align: left;
+    overflow-wrap: anywhere;
+    min-height: 30px;
+  }
+  .table-scroll.cards td > * { max-width: 100%; }
+  .table-scroll.cards td select { width: 100%; }
+  .table-scroll.cards td:last-child { border-bottom: 0; }
+  .table-scroll.cards td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 34%;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .table-scroll.cards td:empty { display: none; }
+  .table-scroll.cards tr.total { background: var(--bg); font-weight: 600; }
+  .table-scroll.cards.card { background: none; border: 0; padding: 0; margin-bottom: 0; box-shadow: none; }
+  .table-scroll.cards td.actions { white-space: normal; }
+  .table-scroll.cards td.actions button { margin: 0 6px 4px 0; }
+
+  /* Matrix keeps its grid but pins the person column. */
+  .matrix-scroll table { min-width: 560px; }
+  .matrix-scroll th:first-child, .matrix-scroll td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--border);
+  }
+}
