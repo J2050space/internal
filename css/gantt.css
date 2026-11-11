@@ -9,7 +9,7 @@
   --st-planned: #c9d2e0;
   --st-blocked: #3b4350;
   --accent-soft: #e3e9fb;
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --mono: var(--font-mono);
 }
 
 [hidden] { display: none !important; }
