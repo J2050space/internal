@@ -72,14 +72,14 @@ function viewPeople(list) {
   if (!people.length) return '<p class="hint">No hours in this period.</p>';
   const max = people[0].hours || 1;
   const total = people.reduce((s, p) => s + p.hours, 0);
-  return `<div class="table-scroll card"><table><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">of which supervising</th><th class="num">Shifts</th><th>Main tasks</th></tr></thead><tbody>
-    ${people.map((p) => `<tr><td>${esc(p.name)}</td>
-      <td class="num"><span class="bar" style="width:${Math.round((p.hours / max) * 80)}px"></span>${h1(p.hours)}</td>
-      <td class="num">${p.sup ? h1(p.sup) : ''}</td>
-      <td class="num">${p.shifts}</td>
-      <td>${[...p.tasks.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+  return `<div class="table-scroll card cards"><table><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">of which supervising</th><th class="num">Shifts</th><th>Main tasks</th></tr></thead><tbody>
+    ${people.map((p) => `<tr><td data-label="Person">${esc(p.name)}</td>
+      <td class="num" data-label="Hours"><span class="bar" style="width:${Math.round((p.hours / max) * 80)}px"></span>${h1(p.hours)}</td>
+      <td class="num" data-label="of which supervising">${p.sup ? h1(p.sup) : ''}</td>
+      <td class="num" data-label="Shifts">${p.shifts}</td>
+      <td data-label="Main tasks">${[...p.tasks.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
         .map(([id, hrs]) => `${taskLabel(id)} (${h1(hrs)} h)`).join('<br>')}</td></tr>`).join('')}
-    <tr class="total"><td>Total</td><td class="num">${h1(total)}</td><td class="num">${h1(people.reduce((s, p) => s + p.sup, 0))}</td><td class="num">${people.reduce((s, p) => s + p.shifts, 0)}</td><td></td></tr>
+    <tr class="total"><td data-label="Person">Total</td><td class="num" data-label="Hours">${h1(total)}</td><td class="num" data-label="of which supervising">${h1(people.reduce((s, p) => s + p.sup, 0))}</td><td class="num" data-label="Shifts">${people.reduce((s, p) => s + p.shifts, 0)}</td><td></td></tr>
     </tbody></table></div>`;
 }
 
@@ -106,11 +106,11 @@ function viewTasks(list) {
   });
   const sorted = [...top.entries()].sort((a, b) => b[1].total - a[1].total);
   const total = sorted.reduce((s, [, e]) => s + e.total, 0);
-  return `<div class="table-scroll card"><table><thead><tr><th>Task</th><th class="num">Hours (incl. subtasks)</th><th class="num">Own hours</th><th class="num">People</th></tr></thead><tbody>
-    ${sorted.map(([id, e]) => `<tr><td>${taskLabel(id)}</td><td class="num">${h1(e.total)}</td><td class="num">${h1(e.ownHours)}</td><td class="num">${e.people.size}</td></tr>` +
-      e.children.sort((a, b) => own.get(b) - own.get(a)).map((c) => `<tr class="sub"><td>${taskLabel(c)}</td><td class="num"></td>
-        <td class="num">${h1(own.get(c))}</td><td class="num">${people.get(c).size}</td></tr>`).join('')).join('')}
-    <tr class="total"><td>Total</td><td class="num">${h1(total)}</td><td></td><td></td></tr>
+  return `<div class="table-scroll card cards"><table><thead><tr><th>Task</th><th class="num">Hours (incl. subtasks)</th><th class="num">Own hours</th><th class="num">People</th></tr></thead><tbody>
+    ${sorted.map(([id, e]) => `<tr><td data-label="Task">${taskLabel(id)}</td><td class="num" data-label="Hours (incl. subtasks)">${h1(e.total)}</td><td class="num" data-label="Own hours">${h1(e.ownHours)}</td><td class="num" data-label="People">${e.people.size}</td></tr>` +
+      e.children.sort((a, b) => own.get(b) - own.get(a)).map((c) => `<tr class="sub"><td data-label="Task">${taskLabel(c)}</td><td class="num" data-label="Hours (incl. subtasks)"></td>
+        <td class="num" data-label="Own hours">${h1(own.get(c))}</td><td class="num" data-label="People">${people.get(c).size}</td></tr>`).join('')).join('')}
+    <tr class="total"><td data-label="Task">Total</td><td class="num" data-label="Hours (incl. subtasks)">${h1(total)}</td><td></td><td></td></tr>
     </tbody></table></div>`;
 }
 
@@ -121,7 +121,7 @@ function viewMatrix(list) {
   list.forEach((r) => taskTotals.set(r.task_id, (taskTotals.get(r.task_id) ?? 0) + r.hours));
   const cols = [...taskTotals.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
   const code = (id) => esc(TASKS.get(id)?.code ?? '?');
-  return `<div class="table-scroll card"><table class="matrix"><thead><tr><th>Person</th>
+  return `<div class="table-scroll card matrix-scroll"><table class="matrix"><thead><tr><th>Person</th>
       ${cols.map((id) => `<th class="num" title="${esc(TASKS.get(id)?.name ?? '')}">${code(id)}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>
     ${people.map((p) => `<tr><td>${esc(p.name)}</td>${cols.map((id) =>
       `<td class="num">${p.tasks.has(id) ? h1(p.tasks.get(id)) : ''}</td>`).join('')}<td class="num"><b>${h1(p.hours)}</b></td></tr>`).join('')}
