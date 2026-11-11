@@ -9,6 +9,7 @@
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, TIME_ZONE } from './format.js';
+import { icon } from './icons.js';
 
 /* ---------- constants ---------- */
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -261,17 +262,17 @@ function toolbar(gantt) {
   const ganttTools = gantt ? `<span class="zoom" role="group" aria-label="Zoom">
       <button type="button" class="secondary" data-act="zoom-out" title="Zoom out"${ui.px === ZOOMS[0] ? ' disabled' : ''}>−</button>
       <button type="button" class="secondary" data-act="zoom-in" title="Zoom in"${ui.px === ZOOMS[ZOOMS.length - 1] ? ' disabled' : ''}>+</button></span>
-    <button type="button" class="secondary" data-act="expand-all">Expand all</button>
-    <button type="button" class="secondary" data-act="collapse-all">Collapse all</button>
+    <button type="button" class="secondary btn-icon" data-act="expand-all" title="Expand all" aria-label="Expand all">${icon('chevrons-down')}</button>
+    <button type="button" class="secondary btn-icon" data-act="collapse-all" title="Collapse all" aria-label="Collapse all">${icon('chevrons-up')}</button>
     ${ADMIN && !COARSE ? `<label class="chk edit-toggle${ui.edit ? ' on' : ''}"><input type="checkbox" id="edit-mode"${ui.edit ? ' checked' : ''}> Edit timeline</label>` : ''}` : '';
   const mode = !ADMIN ? 'Read only: click a task to see its details.'
     : gantt && ui.edit ? 'Edit timeline ON: drag a bar to move it, its ends to change start or end. Esc cancels a drag.'
       : 'Click a task to open it.';
-  return `<div class="bar-tools">${ADMIN ? '<button type="button" data-act="new-task">New task</button>' : ''}${dept}${ganttTools}
+  return `<div class="bar-tools">${ADMIN ? `<button type="button" class="btn-with-icon" data-act="new-task">${icon('plus')} New task</button>` : ''}${dept}${ganttTools}
     <input id="q" type="search" placeholder="Search task or person" value="${esc(ui.q)}" aria-label="Search">
     <label class="chk"><input type="checkbox" id="hd"${ui.hideDone ? ' checked' : ''}> Hide done</label>
-    <button type="button" class="secondary" data-act="csv">Export CSV</button>
-    <button type="button" class="secondary" data-act="reload">Reload</button>
+    <button type="button" class="secondary btn-icon" data-act="csv" title="Export CSV" aria-label="Export CSV">${icon('download')}</button>
+    <button type="button" class="secondary btn-icon" data-act="reload" title="Reload" aria-label="Reload">${icon('rotate-cw')}</button>
     <span class="mode">${mode}</span>
   </div>`;
 }
@@ -612,17 +613,17 @@ function openEditor(id, preset = {}) {
       ${t && !t.parent_id ? `<h3>Subtasks (${children.length})</h3>
         ${children.length ? `<ul class="ed-children">${children.map((c) => `<li><a href="#" data-goto="${c.id}"><span class="code">${esc(c.code)}</span> ${esc(c.name)}</a>
           <span class="hint">${formatDate(c.start_date)} – ${formatDate(c.end_date)} · ${STATUS[c.status]}${c.blocked ? ' · blocked' : ''}</span></li>`).join('')}</ul>` : '<p class="hint">None.</p>'}
-        ${ro ? '' : '<button type="button" class="secondary" data-ed="add-sub">Add subtask</button>'}` : ''}
+        ${ro ? '' : `<button type="button" class="secondary btn-with-icon" data-ed="add-sub">${icon('plus')} Add subtask</button>`}` : ''}
 
       ${t ? '<details class="ed-hist" id="ed-hist"><summary>Change history</summary><div id="ed-hist-body"><p class="hint">Loading…</p></div></details>' : ''}
 
       <p class="message" id="ed-msg" role="alert" hidden></p>
       <div class="buttons">
-        ${t && !ro ? '<button type="button" class="danger" data-ed="delete">Delete…</button>' : ''}
-        ${t && !ro ? '<button type="button" class="secondary" data-ed="duplicate">Duplicate</button>' : ''}
+        ${t && !ro ? `<button type="button" class="danger btn-with-icon" data-ed="delete">${icon('trash-2')} Delete…</button>` : ''}
+        ${t && !ro ? `<button type="button" class="secondary btn-with-icon" data-ed="duplicate">${icon('copy')} Duplicate</button>` : ''}
         <span class="spacer"></span>
-        <button type="button" class="secondary" data-ed="close">${ro ? 'Close' : 'Cancel'}</button>
-        ${ro ? '' : `<button type="submit">${t ? 'Save' : 'Create'}</button>`}
+        <button type="button" class="secondary btn-with-icon" data-ed="close">${icon('x')} ${ro ? 'Close' : 'Cancel'}</button>
+        ${ro ? '' : `<button type="submit" class="btn-with-icon">${icon('check')} ${t ? 'Save' : 'Create'}</button>`}
       </div>
     </form></div>`;
   m.hidden = false;

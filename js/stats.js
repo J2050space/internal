@@ -2,6 +2,7 @@
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, todayIso } from './format.js';
+import { icon } from './icons.js';
 
 const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THM', 'TTC', 'OUT', 'MGT'];
 const VIEWS = [['people', 'By person'], ['tasks', 'By task'], ['matrix', 'Person × task']];
@@ -44,7 +45,7 @@ function renderTools() {
     <button type="button" class="secondary" data-range="30">Last 30 days</button>
     <button type="button" class="secondary" data-range="month">This month</button>
     <button type="button" class="secondary" data-range="all">All</button>
-    <button type="button" class="secondary" data-act="csv">Export CSV</button>`;
+    <button type="button" class="secondary btn-icon" data-act="csv" title="Export CSV" aria-label="Export CSV">${icon('download')}</button>`;
   document.getElementById('nav').innerHTML = VIEWS.map(([k, l]) =>
     `<a href="#${k}"${k === ui.view ? ' aria-current="page"' : ''}>${l}</a>`).join('');
 }
