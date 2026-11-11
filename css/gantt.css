@@ -16,15 +16,15 @@
 
 /* Dark theme: structural lines and status bars need their own values. */
 :root[data-theme="dark"] {
-  --grid: #2a3240;
+  --grid: #2a2d33;
   --st-done: #34c777;
-  --st-progress: #f5a03c;
+  --st-progress: #f2a93b;
   --st-late: #ef5350;
-  --st-risk: #8f99a6;
+  --st-risk: #9aa0aa;
   --st-latestart: #f0d800;
-  --st-planned: #64768f;
-  --st-blocked: #5f6d80;
-  --accent-soft: #22334a;
+  --st-planned: #626a7a;
+  --st-blocked: #5f6673;
+  --accent-soft: #3a2413;
   --sw-border: rgba(255, 255, 255, .22);
   --bar-border: rgba(255, 255, 255, .16);
 }

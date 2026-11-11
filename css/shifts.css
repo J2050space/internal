@@ -17,14 +17,14 @@
 :root[data-theme="dark"] {
   --sh-free: #34c777;
   --sh-free-bg: #14301f;
-  --sh-full: #9aa4b2;
-  --sh-full-bg: #232a33;
-  --sh-mine: #6aa9ea;
-  --sh-mine-bg: #1b2c44;
-  --sh-grid: #2a3240;
-  --sh-req: #ef5350;
+  --sh-full: #9aa3af;
+  --sh-full-bg: #23262c;
+  --sh-mine: #f5822a;
+  --sh-mine-bg: #3a2413;
+  --sh-grid: #2a2d33;
+  --sh-req: #ff6b66;
   --sh-req-bg: #3a1d1c;
-  --sh-past-bg: #20262e;
+  --sh-past-bg: #1d2025;
 }
 
 [hidden] { display: none !important; }
