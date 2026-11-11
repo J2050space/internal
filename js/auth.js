@@ -1,5 +1,6 @@
 // Shared authentication, profile and navigation helpers.
 import { supabase } from './config.js';
+import { mountThemeToggle } from './theme.js';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const ALLOWED_DOMAINS = ['studenti.unipd.it', 'unipd.it'];
@@ -102,6 +103,7 @@ export function renderHeader(profile, activePage) {
   header.querySelector('#user-name').textContent = displayName(profile);
   header.querySelector('#user-role').textContent = profile.role;
   header.querySelector('#logout-btn').addEventListener('click', signOut);
+  mountThemeToggle(header.querySelector('.user'));
 }
 
 // Start-up sequence of a protected page.

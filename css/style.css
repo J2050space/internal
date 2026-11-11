@@ -12,6 +12,29 @@
   --success-bg: #e7f4ec;
   --info: #1f4f86;
   --info-bg: #e8f0fa;
+  --overlay: rgba(20, 26, 34, .45);
+  --input-border: #d8dde4;
+  color-scheme: light;
+}
+
+/* Dark theme: same tokens, dark values. js/theme.js sets data-theme before first paint. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12161c;
+  --surface: #1a2029;
+  --text: #e6e9ee;
+  --muted: #9aa4b2;
+  --border: #2d3540;
+  --accent: #6aa9ea;
+  --accent-text: #0b1017;
+  --error: #ff8a80;
+  --error-bg: #3a1d1c;
+  --success: #6fd39a;
+  --success-bg: #16301f;
+  --info: #8ab8ea;
+  --info-bg: #16283c;
+  --overlay: rgba(0, 0, 0, .62);
+  --input-border: #5f6d80;
 }
 
 * { box-sizing: border-box; }
@@ -34,7 +57,7 @@ label { font-size: 0.875rem; color: var(--muted); }
 input, select, textarea {
   font: inherit;
   padding: 8px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   background: var(--surface);
   color: var(--text);
@@ -52,6 +75,28 @@ button {
 button.secondary { background: var(--surface); color: var(--accent); }
 button.danger    { background: var(--surface); color: var(--error); border-color: var(--error); }
 button:disabled  { opacity: 0.6; cursor: default; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---------- Theme toggle ---------- */
+.theme-toggle {
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.theme-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle.floating {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 30;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+}
 
 .stack { display: grid; gap: 8px; max-width: 420px; }
 .hint { color: var(--muted); font-size: 0.875rem; margin: 0 0 12px; }
