@@ -117,7 +117,7 @@ async function load() {
       .select('*, requester:profiles!shift_requests_requested_by_fkey(full_name, email), tasks(code, name)')
       .gte('created_at', since)
       .order('starts_at'),
-    supabase.from('tasks').select('id, code, name, status, parent_id'),
+    supabase.from('tasks').select('id, code, name, completed_on, parent_id'),
     supabase.from('profiles').select('id, full_name, email').eq('role', 'admin').eq('status', 'active'),
   ]);
   const error = s.error || r.error || t.error || a.error;
@@ -597,7 +597,7 @@ function supervisorSelect(selected) {
 
 function taskOptions(selected, optional) {
   return (optional ? '<option value="">— none —</option>' : '<option value="">— select —</option>') +
-    TASKS.map((t) => `<option value="${t.id}"${t.id === selected ? ' selected' : ''}>${esc(t.code)} – ${esc(t.name.slice(0, 70))}${t.status === 'done' ? ' (done)' : ''}</option>`).join('');
+    TASKS.map((t) => `<option value="${t.id}"${t.id === selected ? ' selected' : ''}>${esc(t.code)} – ${esc(t.name.slice(0, 70))}${t.completed_on ? ' (done)' : ''}</option>`).join('');
 }
 
 // Date and half-hour selectors (08:30-18:30)

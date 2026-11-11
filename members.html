@@ -19,7 +19,8 @@
     import { initProtectedPage, friendlyError, showMessage } from './js/auth.js';
     import { formatDate, formatDateTime } from './js/format.js';
 
-    const TEAMS = ['SYSTEMS', 'ELECTRONICS', 'SOFTWARE', 'AOCS', 'TERMOMECH', 'TELECOM', 'OUTREACH', 'BOARD-PM'];
+    const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THM', 'TTC', 'OUT', 'MGT'];
+    const TEAM_NAMES = { SYS: 'Systems', ELE: 'Electronics', SFW: 'Software', AOCS: 'AOCS', THM: 'Thermal-mechanical', TTC: 'Telecommunications', OUT: 'Outreach', MGT: 'Management' };
     const ROLES = [['user', 'User'], ['teamleader', 'Teamleader'], ['admin', 'Admin']];
 
     const me = await initProtectedPage('members', { adminOnly: true });
@@ -126,14 +127,14 @@
     // Sub-team leaders: default leader of the tasks of each sub-team
     function renderLeaders() {
       const wrap = el('section', null, 'card');
-      wrap.appendChild(el('h2', 'Sub-team leaders'));
-      wrap.appendChild(el('p', 'The leader of a sub-team is the default leader of its tasks (first sub-team of the task, ' +
-        'in the order of this list). A different leader can be set on each task in the Gantt Table view. ' +
+      wrap.appendChild(el('h2', 'Department leaders'));
+      wrap.appendChild(el('p', 'The leader of a department is the default leader of the tasks of that department. ' +
+        'A different leader can be set on each task in the Gantt task editor. ' +
         'Only active teamleaders and admins can be leaders.', 'hint'));
       const eligible = MEMBERS.filter((m) => m.status === 'active' && (m.role === 'teamleader' || m.role === 'admin'));
       const rows = TEAMS.map((team) => {
         const tr = document.createElement('tr');
-        tr.appendChild(el('td', team));
+        tr.appendChild(el('td', `${team} – ${TEAM_NAMES[team]}`));
         const td = document.createElement('td');
         const s = document.createElement('select');
         s.setAttribute('aria-label', `Leader of ${team}`);
@@ -163,7 +164,7 @@
         tr.appendChild(td);
         return tr;
       });
-      wrap.appendChild(table(['Sub-team', 'Leader'], rows));
+      wrap.appendChild(table(['Department', 'Leader'], rows));
       return wrap;
     }
 

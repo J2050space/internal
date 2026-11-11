@@ -256,7 +256,7 @@ async function processReminders() {
 /* ---------- tasks and leaders ---------- */
 async function openTasksWithLeader() {
   const [t, l, p] = await Promise.all([
-    db.from('tasks').select('id, code, name, end_date, status, notified_leader_id').neq('status', 'done'),
+    db.from('tasks').select('id, code, name, end_date, deadline, notified_leader_id').is('completed_on', null),
     db.from('task_leaders').select('task_id, leader_id'),
     db.from('profiles').select('id, email, full_name'),
   ]);
@@ -264,10 +264,11 @@ async function openTasksWithLeader() {
   if (error) throw error;
   const leaderOf = new Map((l.data ?? []).map((x: any) => [x.task_id, x.leader_id]));
   const person = new Map((p.data ?? []).map((x: any) => [x.id, x]));
-  return { tasks: (t.data ?? []).map((x: any) => ({ ...x, leader_id: leaderOf.get(x.id) ?? null })), person };
+  // Due date of a task: its deadline, or its planned end when no deadline is set
+  return { tasks: (t.data ?? []).map((x: any) => ({ ...x, due: x.deadline ?? x.end_date, leader_id: leaderOf.get(x.id) ?? null })), person };
 }
 
-const taskLine = (t: any) => `- ${t.code} ${t.name} (deadline ${isoDay(t.end_date)})`;
+const taskLine = (t: any) => `- ${t.code} ${t.name} (${t.deadline ? 'deadline' : 'planned end'} ${isoDay(t.due)})`;
 
 /* ---------- 3. new task assignments ---------- */
 async function processAssignments() {
@@ -282,7 +283,7 @@ async function processAssignments() {
   for (const [leaderId, list] of byLeader) {
     const leader = person.get(leaderId);
     if (!leader?.email) continue;
-    list.sort((a, b) => (a.end_date < b.end_date ? -1 : 1));
+    list.sort((a, b) => (a.due < b.due ? -1 : 1));
     await send([leader.email], list.length === 1
       ? `Task assigned to you: ${list[0].code} ${list[0].name}`
       : `${list.length} tasks assigned to you`,
@@ -304,8 +305,8 @@ async function processDeadlines() {
   const today = romeDate(new Date());
   const targets = new Map(DEADLINE_DAYS.map((n) => [addDays(today, n), n]));
   const { tasks, person } = await openTasksWithLeader();
-  const due = tasks.filter((t: any) => t.leader_id && targets.has(t.end_date))
-    .map((t: any) => ({ ...t, days: targets.get(t.end_date), key: `deadline:${targets.get(t.end_date)}:${t.id}:${t.end_date}:${t.leader_id}` }));
+  const due = tasks.filter((t: any) => t.leader_id && targets.has(t.due))
+    .map((t: any) => ({ ...t, days: targets.get(t.due), key: `deadline:${targets.get(t.due)}:${t.id}:${t.due}:${t.leader_id}` }));
   if (!due.length) return 0;
   const { data: done } = await db.from('notification_log').select('key').in('key', due.map((t: any) => t.key));
   const already = new Set((done ?? []).map((x: any) => x.key));

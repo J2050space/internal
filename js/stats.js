@@ -3,7 +3,7 @@ import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, todayIso } from './format.js';
 
-const TEAMS = ['SYSTEMS', 'ELECTRONICS', 'SOFTWARE', 'AOCS', 'TERMOMECH', 'TELECOM', 'OUTREACH', 'BOARD-PM'];
+const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THM', 'TTC', 'OUT', 'MGT'];
 const VIEWS = [['people', 'By person'], ['tasks', 'By task'], ['matrix', 'Person × task']];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -20,7 +20,7 @@ let TASKS = new Map(); // id -> task
 async function load() {
   const [h, t] = await Promise.all([
     supabase.rpc('admin_hours', { p_from: ui.from, p_to: ui.to }),
-    supabase.from('tasks').select('id, code, name, parent_id, teams'),
+    supabase.from('tasks').select('id, code, name, parent_id, teams, department'),
   ]);
   if (h.error || t.error) throw (h.error || t.error);
   ROWS = h.data.map((r) => ({ ...r, hours: Number(r.hours) }));
@@ -29,14 +29,17 @@ async function load() {
 
 function rows() {
   if (ui.team === 'All') return ROWS;
-  return ROWS.filter((r) => TASKS.get(r.task_id)?.teams.includes(ui.team));
+  return ROWS.filter((r) => {
+    const t = TASKS.get(r.task_id);
+    return t && (t.department === ui.team || t.teams.includes(ui.team));
+  });
 }
 
 function renderTools() {
   document.getElementById('tools').innerHTML = `
     <div><label for="from">From</label><input id="from" type="date" value="${ui.from}"></div>
     <div><label for="to">To</label><input id="to" type="date" value="${ui.to}"></div>
-    <div><label for="team">Sub-team</label><select id="team">${['All', ...TEAMS].map((k) =>
+    <div><label for="team">Department</label><select id="team">${['All', ...TEAMS].map((k) =>
       `<option${k === ui.team ? ' selected' : ''}>${k}</option>`).join('')}</select></div>
     <button type="button" class="secondary" data-range="30">Last 30 days</button>
     <button type="button" class="secondary" data-range="month">This month</button>
@@ -48,7 +51,7 @@ function renderTools() {
 
 function taskLabel(id) {
   const t = TASKS.get(id);
-  return t ? `<span class="code">${esc(t.code)}</span> ${esc(t.name)}` : '<span class="hint">deleted task</span>';
+  return t ? `<span class="code">${esc(t.code)}</span> ${esc(t.name)}` : '<span class="hint">no task</span>';
 }
 
 function byPerson(list) {

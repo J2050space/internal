@@ -2,11 +2,12 @@
 :root {
   --grid: #e8ecf1;
   --st-done: #1fbf6a;
-  --st-working: #f28c1e;
-  --st-late: #e23b35;
-  --st-risk: #8e959f;
-  --st-long: #f0d800;
-  --st-todo: #c9d2e0;
+  --st-progress: #f28c1e;
+  --st-late: #e23b35;        /* overdue, at risk, dependency conflict */
+  --st-risk: #8e959f;        /* timeline events */
+  --st-latestart: #f0d800;
+  --st-planned: #c9d2e0;
+  --st-blocked: #3b4350;
   --accent-soft: #e3e9fb;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
@@ -36,11 +37,20 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0, 0, 0, .18); }
 
 .sw.done, .bar.done { background: var(--st-done); }
-.sw.working, .bar.working { background: var(--st-working); }
-.sw.late, .bar.late { background: var(--st-late); }
-.sw.qm_risk, .bar.qm_risk { background: var(--st-risk); }
-.sw.long_term, .bar.long_term { background: var(--st-long); }
-.sw.todo, .bar.todo { background: var(--st-todo); }
+.sw.progress, .bar.progress { background: var(--st-progress); }
+.sw.overdue, .bar.overdue { background: var(--st-late); }
+.sw.late_start, .bar.late_start { background: var(--st-latestart); }
+.sw.planned, .bar.planned { background: var(--st-planned); }
+.sw.blocked { background: repeating-linear-gradient(45deg, var(--st-blocked) 0 2px, transparent 2px 5px); }
+.bar.blocked { background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, .45) 0 2px, transparent 2px 6px); }
+/* Task with subtasks: thin summary bar */
+.bar.parent { top: 10px; height: 10px; border-radius: 2px; }
+/* Deadline diamond and margin */
+.dl { position: absolute; top: 9px; width: 10px; height: 10px; background: var(--text); transform: translateX(-5px) rotate(45deg); }
+.dl.risk { background: var(--st-late); }
+.legend .dl { position: static; display: inline-block; width: 9px; height: 9px; transform: rotate(45deg); margin: 0 3px; }
+.margin { position: absolute; top: 14px; height: 0; border-top: 2px dotted var(--muted); }
+.glabel .flag { color: var(--st-blocked); font-size: 0.75rem; flex: none; }
 
 /* ---------- Gantt ---------- */
 .gwrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); max-height: 78vh; }
@@ -75,11 +85,22 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .tw th { position: sticky; top: 0; background: var(--surface); white-space: nowrap; font-size: 0.75rem; }
 .tw td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--grid); }
 th.x, td.x { border-left: 2px solid var(--border); }
-tr.r-done td    { background: color-mix(in srgb, var(--st-done) 16%, var(--surface)); }
-tr.r-working td { background: color-mix(in srgb, var(--st-working) 18%, var(--surface)); }
-tr.r-late td    { background: color-mix(in srgb, var(--st-late) 18%, var(--surface)); }
-tr.r-qm_risk td { background: color-mix(in srgb, var(--st-risk) 22%, var(--surface)); }
-tr.r-long_term td { background: color-mix(in srgb, var(--st-long) 22%, var(--surface)); }
+tr.r-done td       { background: color-mix(in srgb, var(--st-done) 14%, var(--surface)); }
+tr.r-progress td   { background: color-mix(in srgb, var(--st-progress) 14%, var(--surface)); }
+tr.r-overdue td    { background: color-mix(in srgb, var(--st-late) 16%, var(--surface)); }
+tr.r-late_start td { background: color-mix(in srgb, var(--st-latestart) 20%, var(--surface)); }
+table.ro tbody tr[data-open] { cursor: pointer; }
+table.ro tbody tr[data-open]:hover td { filter: brightness(.96); }
+table.ro tbody tr[data-open]:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Status badges */
+.st { display: inline-block; margin: 1px 4px 1px 0; padding: 0 7px; border-radius: 10px; font-size: 0.6875rem; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.st.planned    { background: var(--st-planned); color: var(--text); }
+.st.late_start { background: var(--st-latestart); color: #3a3200; }
+.st.progress   { background: var(--st-progress); color: #fff; }
+.st.overdue    { background: var(--st-late); color: #fff; }
+.st.done       { background: var(--st-done); color: #fff; }
+.st.blocked    { background: var(--st-blocked); color: #fff; }
+.st.risk       { background: var(--surface); color: var(--st-late); border-color: var(--st-late); }
 tr.sub td:first-child { padding-left: 22px; }
 
 .tw td input, .tw td select { width: 100%; padding: 4px 6px; border-color: transparent; background: transparent; font-size: 0.8125rem; }
@@ -157,7 +178,7 @@ a.code:hover { text-decoration: underline; }
 .chip button:hover { color: var(--st-late); }
 ul.ed-warn { list-style: none; margin: 12px 0 0; padding: 0; font-size: 0.8125rem; }
 ul.ed-warn li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; }
-ul.ed-warn li.warn { background: color-mix(in srgb, var(--st-working) 16%, var(--surface)); }
+ul.ed-warn li.warn { background: color-mix(in srgb, var(--st-progress) 16%, var(--surface)); }
 ul.ed-warn li.error { background: var(--error-bg); color: var(--error); }
 button.link { border: none; background: none; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; font-size: inherit; }
 ul.ed-children { list-style: none; margin: 0 0 8px; padding: 0; font-size: 0.8125rem; }
@@ -174,4 +195,21 @@ ul.hist li { padding: 4px 0; border-bottom: 1px solid var(--grid); }
   .ed-grid { grid-template-columns: 1fr; }
   .ed-grid .span2 { grid-column: auto; }
   .ed-deps { grid-template-columns: 1fr; }
+}
+
+/* ---------- Model of migration 009 ---------- */
+.edit-toggle { padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.edit-toggle.on { border-color: var(--st-progress); color: var(--text); background: color-mix(in srgb, var(--st-progress) 14%, var(--surface)); font-weight: 600; }
+.gwrap.editing { border-color: var(--st-progress); box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-progress) 30%, transparent); }
+.bar:not(.drag) { cursor: pointer; }
+.code.big { font-size: 1rem; }
+.ed-progress { display: grid; grid-template-columns: max-content 160px max-content 160px; gap: 8px 10px; align-items: center; }
+.ed-progress .pk { display: flex; gap: 6px; align-items: center; color: var(--text); margin: 0; }
+.ed-progress .pk input { width: auto; }
+.ed-progress #ed-blocked-reason { grid-column: 2 / -1; }
+.ed-grid .span3.hint, .ed-grid p.span3 { grid-column: 1 / -1; margin: 0; }
+#toast button.link { color: var(--surface); font-weight: 600; margin-left: 6px; }
+@media (max-width: 640px) {
+  .ed-progress { grid-template-columns: max-content 1fr; }
+  .ed-progress #ed-blocked-reason { grid-column: 1 / -1; }
 }
