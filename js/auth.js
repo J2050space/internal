@@ -1,5 +1,6 @@
 // Shared authentication, profile and navigation helpers.
 import { supabase } from './config.js';
+import { icon } from './icons.js';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const ALLOWED_DOMAINS = ['studenti.unipd.it', 'unipd.it'];
@@ -93,7 +94,7 @@ export function renderHeader(profile, activePage) {
     <div class="user">
       <span id="user-name"></span>
       <span id="user-role" class="badge"></span>
-      <button id="logout-btn" type="button" class="secondary">Log out</button>
+      <button id="logout-btn" type="button" class="secondary btn-icon" aria-label="Log out" title="Log out">${icon('log-out')}</button>
     </div>`;
   if (profile.role === 'admin') {
     header.querySelectorAll('[data-admin]').forEach((el) => { el.hidden = false; });

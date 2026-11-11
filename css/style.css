@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Play';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/play-700.woff2') format('woff2');
+}
+
 :root {
   --bg: #f5f6f8;
   --surface: #ffffff;
@@ -12,13 +20,15 @@
   --success-bg: #e7f4ec;
   --info: #1f4f86;
   --info-bg: #e8f0fa;
+  --font-body: Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
+  --font-display: "Play", Arial, "Helvetica Neue", Helvetica, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
@@ -26,6 +36,7 @@ body {
 
 h1 { font-size: 1.4rem; margin: 0 0 16px; }
 h2 { font-size: 1.05rem; margin: 0 0 12px; }
+h1, h2 { font-family: var(--font-display); font-weight: 700; }
 a { color: var(--accent); }
 
 /* ---------- Forms ---------- */
@@ -103,7 +114,7 @@ button:disabled  { opacity: 0.6; cursor: default; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-#app-header .brand { font-weight: 600; }
+#app-header .brand { font-weight: 700; font-family: var(--font-display); }
 #app-header nav { display: flex; flex-wrap: wrap; gap: 12px; flex: 1; }
 #app-header nav a { color: var(--muted); text-decoration: none; padding: 4px 2px; }
 #app-header nav a.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
@@ -137,3 +148,31 @@ th { color: var(--muted); font-weight: 600; }
 td.actions { white-space: nowrap; }
 td.actions button { padding: 4px 10px; margin-right: 6px; font-size: 0.8125rem; }
 td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
+
+/* ---------- Icons in buttons ---------- */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex: none;
+}
+.btn-with-icon { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn-icon svg, .btn-with-icon svg { flex: none; pointer-events: none; }
+
+/* Theme toggle: icon-only when the dark-mode toggle exists, without JS dependency. */
+.theme-toggle { width: 34px; height: 34px; padding: 0; font-size: 0; }
+.theme-toggle::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20.985%2012.486a9%209%200%201%201-9.473-9.472c.405-.022.617.46.402.803a6%206%200%200%200%208.268%208.268c.344-.215.825-.004.803.401%22%20%2F%3E%3C%2Fsvg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20.985%2012.486a9%209%200%201%201-9.473-9.472c.405-.022.617.46.402.803a6%206%200%200%200%208.268%208.268c.344-.215.825-.004.803.401%22%20%2F%3E%3C%2Fsvg%3E") center / 16px 16px no-repeat;
+}
+:root[data-theme="dark"] .theme-toggle::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%20%2F%3E%20%3Cpath%20d%3D%22M12%202v2%22%20%2F%3E%20%3Cpath%20d%3D%22M12%2020v2%22%20%2F%3E%20%3Cpath%20d%3D%22m4.93%204.93%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m17.66%2017.66%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22M2%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22M20%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22m6.34%2017.66-1.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m19.07%204.93-1.41%201.41%22%20%2F%3E%3C%2Fsvg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%20%2F%3E%20%3Cpath%20d%3D%22M12%202v2%22%20%2F%3E%20%3Cpath%20d%3D%22M12%2020v2%22%20%2F%3E%20%3Cpath%20d%3D%22m4.93%204.93%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m17.66%2017.66%201.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22M2%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22M20%2012h2%22%20%2F%3E%20%3Cpath%20d%3D%22m6.34%2017.66-1.41%201.41%22%20%2F%3E%20%3Cpath%20d%3D%22m19.07%204.93-1.41%201.41%22%20%2F%3E%3C%2Fsvg%3E");
+}
