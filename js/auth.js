@@ -1,5 +1,6 @@
 // Shared authentication, profile and navigation helpers.
 import { supabase } from './config.js';
+import { mountWebMcp, unmountWebMcp } from './webmcp/registry.js';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const ALLOWED_DOMAINS = ['studenti.unipd.it', 'unipd.it'];
@@ -74,6 +75,7 @@ export function displayName(profile) {
 }
 
 export async function signOut() {
+  unmountWebMcp();
   await supabase.auth.signOut();
   window.location.replace('index.html');
 }
@@ -123,6 +125,8 @@ export async function initProtectedPage(activePage, { adminOnly = false } = {}) 
     return null;
   }
   renderHeader(result.profile, activePage);
+  // Read-only WebMCP tools; a no-op when the browser does not support the API.
+  void mountWebMcp(result.profile, activePage);
   return result.profile;
 }
 
