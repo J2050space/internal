@@ -85,11 +85,11 @@ export function renderHeader(profile, activePage) {
   const header = document.getElementById('app-header');
   header.innerHTML = `
     <a class="brand" href="shifts.html">
-      <span class="brand-mark" aria-hidden="true">J</span>
-      <span class="brand-text">
-        <span class="brand-name">J2050</span>
-        <span class="brand-sub">Team Management</span>
+      <span class="brand-logo" role="img" aria-label="J2050">
+        <img class="logo-on-light" src="img/j2050-logo-light.png" alt="">
+        <img class="logo-on-dark" src="img/j2050-logo-dark.png" alt="">
       </span>
+      <span class="brand-sub">Team Management</span>
     </a>
     <nav>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>

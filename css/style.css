@@ -347,28 +347,20 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 }
 
 /* ---------- Brand lockup ---------- */
-.brand-mark {
-  display: inline-grid;
-  place-items: center;
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
   flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: var(--accent-text);
-  font-family: var(--font-display);
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1;
 }
-.brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-.brand-name { font-size: 0.875rem; font-weight: 600; letter-spacing: -0.012em; }
+.brand-logo img { display: block; height: 32px; width: auto; }
+.brand-logo .logo-on-dark { display: none; }
+:root[data-theme="dark"] .brand-logo .logo-on-light { display: none; }
+:root[data-theme="dark"] .brand-logo .logo-on-dark { display: block; }
 .brand-sub {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
   white-space: nowrap;
@@ -393,7 +385,7 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 .login-box .auth-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 22px;
 }
 .login-box h1 { font-size: 1.375rem; letter-spacing: -0.03em; margin: 0 0 4px; }
@@ -443,7 +435,7 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 #app-header .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex: none;
   color: var(--text);
   text-decoration: none;
