@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WebMCP tools – tests</title>
+  <style>
+    body { font: 14px/1.5 ui-monospace, monospace; margin: 2rem; }
+    .ok { color: #17692b; }
+    .fail { color: #a11b1b; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>WebMCP tools – tests</h1>
+  <p>Runs against the real <code>document.modelContext</code> with a stub data source.
+    Open this page in Chrome/Chromium with WebMCP enabled, or run <code>node tests/run-webmcp.mjs</code>.</p>
+  <pre id="out">running…</pre>
+
+  <script type="module">
+    import { registerTools } from '../js/webmcp/tools.js';
+    import { freeRanges, mondayOf, statusOf, weekdayIndex } from '../js/webmcp/model.js';
+
+    const results = [];
+    const record = (name, ok, error) => results.push({ name, ok, error: error ?? null });
+
+    async function check(name, fn) {
+      try { await fn(); record(name, true); }
+      catch (error) { record(name, false, error?.message ?? String(error)); }
+    }
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    function equal(actual, expected, message) {
+      const a = JSON.stringify(actual);
+      const e = JSON.stringify(expected);
+      if (a !== e) throw new Error(`${message}: expected ${e}, got ${a}`);
+    }
+
+    function makeData() {
+      const calls = [];
+      return {
+        calls,
+        async searchTasks(args) {
+          calls.push(['searchTasks', args]);
+          return { count: 1, shown: 1, tasks: [{ code: 'ELE-01', status: 'progress' }] };
+        },
+        async taskDetails(args) {
+          calls.push(['taskDetails', args]);
+          return args.code ? { task: { code: args.code }, subtasks: [] } : { error: 'Task not found.' };
+        },
+        async upcomingDeadlines(args) {
+          calls.push(['upcomingDeadlines', args]);
+          return { count: 0, tasks: [] };
+        },
+        async listFreeSlots(args) {
+          calls.push(['listFreeSlots', args]);
+          return { count: 0, slots: [] };
+        },
+        async myBookings(args) {
+          calls.push(['myBookings', args]);
+          return { count: 0, bookings: [] };
+        },
+      };
+    }
+
+    // Chromium 152 rejects a plain object input and expects a JSON string;
+    // newer builds may accept the object, so try both.
+    async function exec(ctx, tool, args) {
+      try {
+        return await ctx.executeTool(tool, args);
+      } catch (error) {
+        if (!/Failed to parse input arguments/.test(error?.message ?? '')) throw error;
+        return ctx.executeTool(tool, JSON.stringify(args));
+      }
+    }
+
+    async function withTools(page, fn) {
+      const ctx = document.modelContext;
+      const controller = new AbortController();
+      const data = makeData();
+      await registerTools(ctx, { profile: { id: 'test-user', role: 'user' }, page, data }, { signal: controller.signal });
+      try {
+        await fn(ctx, data);
+      } finally {
+        controller.abort();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    const modelTests = [
+      ['mondayOf returns the Monday of the week', () => equal(mondayOf('2026-11-12'), '2026-11-09', 'monday')],
+      ['weekdayIndex uses Monday as 0', () => equal(weekdayIndex('2026-11-12'), 3, 'weekday')],
+      ['status planned', () => equal(statusOf({ start_date: '2026-11-20', end_date: '2026-11-30' }, '2026-11-12'), 'planned', 'planned')],
+      ['status late start', () => equal(statusOf({ start_date: '2026-11-01', end_date: '2026-11-30' }, '2026-11-12'), 'late_start', 'late start')],
+      ['status in progress', () => equal(statusOf({ start_date: '2026-11-01', end_date: '2026-11-30', started_on: '2026-11-05' }, '2026-11-12'), 'progress', 'progress')],
+      ['status overdue', () => equal(statusOf({ start_date: '2026-11-01', end_date: '2026-11-10', started_on: '2026-11-02' }, '2026-11-12'), 'overdue', 'overdue')],
+      ['status done wins', () => equal(statusOf({ start_date: '2026-11-01', end_date: '2026-11-10', started_on: '2026-11-02', completed_on: '2026-11-09' }, '2026-11-12'), 'done', 'done')],
+    ];
+
+    const shift = {
+      starts_at: '2026-11-16T08:30:00+01:00',
+      ends_at: '2026-11-16T10:30:00+01:00',
+      capacity: 2,
+      assignments: [
+        { role: 'participant', starts_at: '2026-11-16T08:30:00+01:00', ends_at: '2026-11-16T09:30:00+01:00' },
+        { role: 'supervisor', starts_at: '2026-11-16T09:00:00+01:00', ends_at: '2026-11-16T10:30:00+01:00' },
+        { role: 'participant', starts_at: '2026-11-16T09:30:00+01:00', ends_at: '2026-11-16T10:00:00+01:00' },
+        { role: 'participant', starts_at: '2026-11-16T09:30:00+01:00', ends_at: '2026-11-16T10:00:00+01:00' },
+      ],
+    };
+
+    async function run() {
+      for (const [name, fn] of modelTests) await check(name, fn);
+
+      await check('free ranges split on seats and supervision', () => {
+        const ranges = freeRanges(shift, Date.parse('2026-11-15T00:00:00Z')).map((r) => ({
+          start: r.startLabel, end: r.endLabel, seats: r.seats, covered: r.covered,
+        }));
+        equal(ranges, [
+          { start: '08:30', end: '09:00', seats: 1, covered: false },
+          { start: '09:00', end: '09:30', seats: 1, covered: true },
+          { start: '10:00', end: '10:30', seats: 2, covered: true },
+        ], 'ranges');
+      });
+
+      await check('free ranges ignore started slots', () => {
+        const ranges = freeRanges(shift, Date.parse('2026-11-16T09:10:00+01:00'));
+        equal(ranges.map((r) => r.startLabel), ['10:00'], 'started');
+      });
+
+      if (!document.modelContext) {
+        throw new Error('WebMCP API not available: enable chrome://flags/#enable-webmcp-testing or pass --enable-features=WebMCP');
+      }
+
+      await check('gantt page registers the core tools and runs them', () => withTools('gantt', async (ctx, data) => {
+        const tools = await ctx.getTools();
+        equal(tools.map((t) => t.name).sort(), ['search_tasks', 'task_details', 'upcoming_deadlines'], 'gantt tools');
+        assert(tools.every((t) => t.annotations?.readOnlyHint === true), 'all phase 1 tools are read-only');
+        const byName = new Map(tools.map((t) => [t.name, t]));
+
+        const payload = JSON.parse(await exec(ctx, byName.get('search_tasks'), { query: 'power', department: 'ELE' }));
+        equal(payload.tasks[0].code, 'ELE-01', 'search result');
+        equal(data.calls.at(-1)[1], {
+          query: 'power', department: 'ELE', status: null, include_done: false, limit: 10,
+        }, 'search arguments');
+
+        const invalid = JSON.parse(await exec(ctx, byName.get('search_tasks'), { status: 'nope' }));
+        assert(/status must be one of/.test(invalid.error), 'invalid status is rejected');
+
+        await exec(ctx, byName.get('search_tasks'), { department: 'ele' });
+        equal(data.calls.at(-1)[1].department, 'ELE', 'department is case-insensitive');
+
+        const details = JSON.parse(await exec(ctx, byName.get('task_details'), { code: 'ELE-01' }));
+        equal(details.task.code, 'ELE-01', 'task details');
+        assert(byName.get('task_details').annotations?.untrustedContentHint === true, 'task text is untrusted');
+
+        const errors = JSON.parse(await exec(ctx, byName.get('task_details'), {}));
+        assert(/not found/.test(errors.error), 'missing code returns an error payload');
+      }));
+
+      await check('shifts page adds the shift tools', () => withTools('shifts', async (ctx) => {
+        const tools = await ctx.getTools();
+        equal(tools.map((t) => t.name).sort(), [
+          'list_free_slots', 'my_bookings', 'search_tasks', 'task_details', 'upcoming_deadlines',
+        ], 'shifts tools');
+        const byName = new Map(tools.map((t) => [t.name, t]));
+
+        const slots = JSON.parse(await exec(ctx, byName.get('list_free_slots'), {}));
+        equal(slots.count, 0, 'empty slot payload');
+
+        const invalid = JSON.parse(await exec(ctx, byName.get('list_free_slots'), { min_minutes: 45 }));
+        assert(/multiple of 30/.test(invalid.error), 'min_minutes must be a multiple of 30');
+
+        const bookings = JSON.parse(await exec(ctx, byName.get('my_bookings'), {}));
+        equal(bookings.count, 0, 'empty bookings payload');
+      }));
+
+      await check('abort unregisters the tools', async () => {
+        const ctx = document.modelContext;
+        const controller = new AbortController();
+        await registerTools(ctx, { profile: { id: 'test-user' }, page: 'gantt', data: makeData() }, { signal: controller.signal });
+        assert((await ctx.getTools()).length === 3, 'tools registered');
+        controller.abort();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        assert((await ctx.getTools()).length === 0, 'tools removed');
+      });
+    }
+
+    try {
+      await run();
+    } catch (error) {
+      record('harness', false, error?.message ?? String(error));
+    }
+
+    const passed = results.filter((r) => r.ok).length;
+    const failed = results.length - passed;
+    window.__webmcpResults = { done: true, passed, failed, results };
+    document.getElementById('out').innerHTML = results
+      .map((r) => `<span class="${r.ok ? 'ok' : 'fail'}">${r.ok ? 'ok' : 'FAIL'}</span> ${r.name}`
+        + (r.error ? `\n     ${r.error}` : ''))
+      .join('\n') + `\n\n${passed} passed, ${failed} failed`;
+  </script>
+</body>
+</html>

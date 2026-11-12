@@ -37,6 +37,42 @@ The pages only check inputs to give clear messages before sending.
 
 A new account is `pending` until an admin approves it in `members.html`.
 
+## WebMCP tools (read-only)
+
+The site registers a small set of read-only tools through
+[WebMCP](https://developer.chrome.com/docs/ai/webmcp), a draft browser API
+(`document.modelContext`) available in Chrome and Edge behind the origin trial
+or the `chrome://flags/#enable-webmcp-testing` flag. Browsers without the API
+register no tools and load no tool code.
+
+| Tool | Pages | Content |
+|---|---|---|
+| `search_tasks` | protected pages | tasks by text, department, status |
+| `task_details` | protected pages | one task with subtasks and dependencies |
+| `upcoming_deadlines` | protected pages | deadlines in the next N days, overdue included |
+| `list_free_slots` | `shifts.html` | free half-hour lab slots with seats and supervisor |
+| `my_bookings` | `shifts.html` | the signed-in user's bookings |
+
+Tools are registered only after `initProtectedPage()` succeeds, use the same
+Supabase session as the page, and are unregistered on logout through an
+`AbortController`. They never scrape the DOM: they read the same tables and the
+`task_leaders` view, so Row Level Security remains the only permission layer.
+This phase is read-only on purpose; booking tools will follow separately.
+
+Code: `js/webmcp/registry.js` (bootstrap), `tools.js` (schemas and validation),
+`data.js` (queries), `model.js` (pure helpers).
+
+Tests (Node 22+, Chrome or Chromium with WebMCP):
+
+```
+node tests/run-webmcp.mjs
+CHROME=/path/to/chrome node tests/run-webmcp.mjs
+```
+
+Origin trial: register `https://j2050space.github.io`, then add
+`<meta http-equiv="origin-trial" content="...">` to every page (GitHub Pages
+cannot send the header). The token is public and expires after a few weeks.
+
 ## Planning model (Gantt)
 
 - Task code generated on creation: `<department>-<nn>` (e.g. `ELE-01`); subtask `<parent>.<n>` (e.g. `ELE-01.2`).
