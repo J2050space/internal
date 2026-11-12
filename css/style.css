@@ -145,7 +145,7 @@ td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  box-shadow: inset -12px 0 12px -12px rgba(0, 0, 0, .35);
+  box-shadow: inset -12px 0 12px -12px color-mix(in srgb, var(--text) 22%, transparent);
 }
 .table-scroll::-webkit-scrollbar, .gwrap::-webkit-scrollbar, .tw::-webkit-scrollbar { width: 10px; height: 10px; }
 .table-scroll::-webkit-scrollbar-thumb, .gwrap::-webkit-scrollbar-thumb, .tw::-webkit-scrollbar-thumb {
@@ -155,7 +155,7 @@ td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
 .table-scroll::-webkit-scrollbar-track, .gwrap::-webkit-scrollbar-track, .tw::-webkit-scrollbar-track { background: transparent; }
 
 /* Header: two rows under 900px, navigation scrolls instead of stacking. */
-@media (max-width: 899px) {
+@media (max-width: 900px) {
   #app-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -220,7 +220,7 @@ td.actions select { padding: 4px 6px; margin-right: 6px; font-size: 0.8125rem; }
   }
   .table-scroll.cards td:empty { display: none; }
   .table-scroll.cards tr.total { background: var(--bg); font-weight: 600; }
-  .table-scroll.cards.card { background: none; border: 0; padding: 0; margin-bottom: 0; box-shadow: none; }
+  .table-scroll.cards, .table-scroll.cards.card { background: none; border: 0; padding: 0; margin-bottom: 0; box-shadow: none; }
   .table-scroll.cards td.actions { white-space: normal; }
   .table-scroll.cards td.actions button { margin: 0 6px 4px 0; }
 

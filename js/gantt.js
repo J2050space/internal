@@ -110,6 +110,13 @@ const ui = {
   collapsed: new Set(stored('gantt-collapsed', [])),
 };
 
+// Keep the mobile default when the viewport crosses the breakpoint, unless the user chose a zoom.
+const mobileQuery = window.matchMedia('(max-width: 640px)');
+mobileQuery.addEventListener('change', (e) => {
+  if (stored('gantt-px', null) === null) ui.px = e.matches ? ZOOMS[0] : 7;
+  render();
+});
+
 async function load() {
   const [t, d, ev, pr, tl] = await Promise.all([
     supabase.from('tasks').select('*'),
