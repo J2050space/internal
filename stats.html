@@ -4,6 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>J2050 Team Management – Stats</title>
+  <script>
+    // Apply the saved theme before the first paint (key documented in js/theme.js).
+    try {
+      const saved = localStorage.getItem('j2050-theme');
+      document.documentElement.dataset.theme =
+        saved === 'dark' || saved === 'light' ? saved
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch {
+      document.documentElement.dataset.theme =
+        matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+  </script>
   <link rel="stylesheet" href="css/style.css">
   <style>
     .st-tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-bottom: 14px; }
@@ -41,18 +53,6 @@
     .code { padding: 0 5px; border-radius: 4px; background: var(--surface-2); font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); }
     .matrix td, .matrix th { white-space: nowrap; }
   </style>
-  <script>
-    // Apply the saved theme before the first paint (key documented in js/theme.js).
-    try {
-      const saved = localStorage.getItem('j2050-theme');
-      document.documentElement.dataset.theme =
-        saved === 'dark' || saved === 'light' ? saved
-          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    } catch {
-      document.documentElement.dataset.theme =
-        matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-  </script>
 </head>
 <body>
   <header id="app-header"></header>
