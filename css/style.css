@@ -352,7 +352,7 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
   align-items: center;
   flex: none;
 }
-.brand-logo img { display: block; height: 32px; width: auto; }
+.brand-logo img { display: block; height: 28px; width: auto; }
 .brand-logo .logo-on-dark { display: none; }
 :root[data-theme="dark"] .brand-logo .logo-on-light { display: none; }
 :root[data-theme="dark"] .brand-logo .logo-on-dark { display: block; }
