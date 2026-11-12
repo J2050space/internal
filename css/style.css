@@ -44,7 +44,7 @@
   --info-bg: #eff8ff;
 
   --overlay: rgba(23, 23, 23, .45);
-  --input-border: #d4d4d4;
+  --input-border: #949494;
   --toast-bg: #1c1c1c;
   --toast-text: #ededed;
   --toast-border: transparent;
@@ -89,7 +89,7 @@
   --info-bg: #151d26;
 
   --overlay: rgba(0, 0, 0, .70);
-  --input-border: #4a4a4a;
+  --input-border: #666666;
   --toast-bg: #1c1c1c;
   --toast-text: #ededed;
   --toast-border: rgba(255, 255, 255, .14);
@@ -190,11 +190,11 @@ input, select, textarea {
   transition: border-color .12s ease, box-shadow .12s ease;
 }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: .75; }
-input:hover, select:hover, textarea:hover { border-color: var(--border-strong); }
+input:hover, select:hover, textarea:hover { border-color: var(--muted); }
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-hover) 26%, transparent);
 }
 input:disabled, select:disabled, textarea:disabled {
   background: var(--surface-2);
@@ -368,6 +368,7 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 
 /* ---------- Login, registration, reset ---------- */
 .login-page {
+  min-height: 100vh;
   min-height: 100svh;
   display: grid;
   place-items: center;
@@ -384,8 +385,9 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 }
 .login-box .auth-brand {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
   margin-bottom: 22px;
 }
 .login-box h1 { font-size: 1.375rem; letter-spacing: -0.03em; margin: 0 0 4px; }

@@ -27,6 +27,7 @@ function syncButton(button) {
   const dark = currentTheme() === 'dark';
   button.setAttribute('aria-pressed', String(dark));
   button.setAttribute('aria-label', 'Dark mode');
+  button.title = 'Dark mode';
   button.textContent = dark ? 'Light' : 'Dark';
 }
 

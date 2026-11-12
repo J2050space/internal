@@ -125,7 +125,7 @@ label.chk input { width: auto; min-height: 0; }
 .sblock.mine { background: var(--sh-mine-bg); border-color: var(--sh-mine); }
 .sblock.req { background: var(--sh-req-bg); border-color: var(--sh-req); border-style: dashed; }
 .sblock.req .rq { font-family: var(--font-mono); font-weight: 500; font-size: 9.5px; letter-spacing: .06em; color: var(--sh-req-ink); text-transform: uppercase; }
-.sblock.past { opacity: .5; }
+.sblock.past { opacity: .7; }
 .sblock .t { font-weight: 600; font-variant-numeric: tabular-nums; }
 .sblock .c { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
 .sblock .n { color: color-mix(in srgb, var(--text) 72%, transparent); font-size: 10.5px; }

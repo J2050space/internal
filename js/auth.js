@@ -86,8 +86,8 @@ export function renderHeader(profile, activePage) {
   header.innerHTML = `
     <a class="brand" href="shifts.html">
       <span class="brand-logo" role="img" aria-label="J2050">
-        <img class="logo-on-light" src="img/j2050-logo-light.png" alt="">
-        <img class="logo-on-dark" src="img/j2050-logo-dark.png" alt="">
+        <img class="logo-on-light" src="img/j2050-logo-light.png" width="239" height="88" alt="">
+        <img class="logo-on-dark" src="img/j2050-logo-dark.png" width="241" height="88" alt="">
       </span>
       <span class="brand-sub">Team Management</span>
     </a>
