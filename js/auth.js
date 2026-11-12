@@ -84,7 +84,13 @@ export async function signOut() {
 export function renderHeader(profile, activePage) {
   const header = document.getElementById('app-header');
   header.innerHTML = `
-    <div class="brand">J2050 Team Management</div>
+    <a class="brand" href="shifts.html">
+      <span class="brand-mark" aria-hidden="true">J</span>
+      <span class="brand-text">
+        <span class="brand-name">J2050</span>
+        <span class="brand-sub">Team Management</span>
+      </span>
+    </a>
     <nav>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
       <a href="gantt.html" data-page="gantt">Gantt</a>
