@@ -19,6 +19,8 @@ const PATHS = {
   "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />",
   "chevron-left": "<path d=\"m15 18-6-6 6-6\" />",
   "chevron-right": "<path d=\"m9 18 6-6-6-6\" />",
+  "chevron-down": "<path d=\"m6 9 6 6 6-6\" />",
+  "chevron-up": "<path d=\"m18 15-6-6-6 6\" />",
   "chevrons-down": "<path d=\"m7 6 5 5 5-5\" /> <path d=\"m7 13 5 5 5-5\" />",
   "chevrons-up": "<path d=\"m17 11-5-5-5 5\" /> <path d=\"m17 18-5-5-5 5\" />",
   "calendar-plus": "<path d=\"M16 18h6\" /> <path d=\"M16 2v3\" /> <path d=\"M19 15v6\" /> <path d=\"M21 11.5V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h8.3\" /> <path d=\"M3 9h18\" /> <path d=\"M8 2v3\" />",
