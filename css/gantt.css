@@ -372,6 +372,8 @@ ul.hist li { padding: 4px 0; border-bottom: 1px solid var(--grid); }
 .mbox .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
 .mbox .buttons .spacer { flex: 1; }
 @media (max-width: 640px) {
+  .glabel .caret, .glabel .addsub { position: relative; }
+  .glabel .caret::after, .glabel .addsub::after { content: ''; position: absolute; inset: -7px; }
   .ed-grid { grid-template-columns: 1fr; }
   .ed-grid .span2 { grid-column: auto; }
   .ed-deps { grid-template-columns: 1fr; }

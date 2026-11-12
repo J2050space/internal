@@ -106,7 +106,9 @@ export function renderHeader(profile, activePage) {
   if (profile.role === 'admin') {
     header.querySelectorAll('[data-admin]').forEach((el) => { el.hidden = false; });
   }
-  header.querySelector(`[data-page="${activePage}"]`)?.classList.add('active');
+  const activeLink = header.querySelector(`[data-page="${activePage}"]`);
+  activeLink?.classList.add('active');
+  activeLink?.scrollIntoView({ block: 'nearest', inline: 'center' });
   header.querySelector('#user-name').textContent = displayName(profile);
   header.querySelector('#user-role').textContent = profile.role;
   header.querySelector('#logout-btn').addEventListener('click', signOut);
