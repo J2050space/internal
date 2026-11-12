@@ -385,7 +385,7 @@ function bookingList(s) {
   if (!s.bookings.length) return '<p class="hint">Nobody booked yet.</p>';
   return `<ul class="people">${s.bookings.map((b) => `<li><span>${esc(b.name)}${b.user_id === ME ? ' (you)' : ''}
       <span class="hint">· ${b.role} · ${formatTime(b.starts_at)}–${formatTime(b.ends_at)}</span></span>
-      ${ADMIN ? `<button type="button" class="danger btn-icon" data-act="remove" data-user="${b.user_id}" aria-label="Remove booking" title="Remove booking">${icon('x')}</button>` : ''}</li>`).join('')}</ul>`;
+      ${ADMIN ? `<button type="button" class="danger btn-icon" data-act="remove" data-user="${b.user_id}" aria-label="Remove booking for ${esc(b.name)}" title="Remove booking for ${esc(b.name)}">${icon('x')}</button>` : ''}</li>`).join('')}</ul>`;
 }
 
 function openShift(id) {

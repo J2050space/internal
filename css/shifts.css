@@ -18,7 +18,7 @@
 .s-top h1 { margin: 0; }
 .s-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .s-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 8px; }
-.s-tools .range { font-weight: 600; }
+.s-tools .range { font-weight: 600; font-family: var(--font-mono); }
 .s-tools button { padding: 6px 10px; }
 label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 0.8125rem; }
 
@@ -38,10 +38,10 @@ label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); f
 .wscroll { overflow-x: auto; }
 .wgrid { display: grid; grid-template-columns: 48px repeat(5, minmax(120px, 1fr)); min-width: 680px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .wgrid .corner, .wgrid .dhead { height: 36px; border-bottom: 1px solid var(--border); }
-.wgrid .dhead { display: flex; align-items: center; justify-content: center; font-size: 0.8125rem; font-weight: 600; border-left: 1px solid var(--border); }
+.wgrid .dhead { display: flex; align-items: center; justify-content: center; font-size: 0.8125rem; font-weight: 600; font-family: var(--font-mono); border-left: 1px solid var(--border); }
 .wgrid .dhead.today { color: var(--accent); background: var(--sh-mine-bg); }
 .times { position: relative; }
-.times span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 0.6875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.times span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 0.6875rem; font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .dbody {
   position: relative;
   border-left: 1px solid var(--border);

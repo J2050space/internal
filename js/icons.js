@@ -31,6 +31,7 @@ const PATHS = {
 
 // Returns an inline SVG that inherits the button colour (currentColor).
 export function icon(name, size = 16) {
+  if (!Object.hasOwn(PATHS, name)) return '';
   const body = PATHS[name];
   if (!body) return '';
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`;
