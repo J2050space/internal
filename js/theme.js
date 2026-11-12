@@ -26,7 +26,7 @@ export function currentTheme() {
 function syncButton(button) {
   const dark = currentTheme() === 'dark';
   button.setAttribute('aria-pressed', String(dark));
-  button.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  button.setAttribute('aria-label', 'Dark mode');
   button.textContent = dark ? 'Light' : 'Dark';
 }
 
@@ -37,6 +37,7 @@ export function applyTheme(theme) {
 
 export function setTheme(theme) {
   explicit = true;
+  stopFollowingSystem();
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {
@@ -66,8 +67,14 @@ export function mountThemeToggle(container = document.body, { floating = false }
 const onSystemChange = () => {
   if (!explicit) applyTheme(systemTheme());
 };
-if (media.addEventListener) media.addEventListener('change', onSystemChange);
-else if (media.addListener) media.addListener(onSystemChange);
+function stopFollowingSystem() {
+  if (media.removeEventListener) media.removeEventListener('change', onSystemChange);
+  else if (media.removeListener) media.removeListener(onSystemChange);
+}
+if (!explicit) {
+  if (media.addEventListener) media.addEventListener('change', onSystemChange);
+  else if (media.addListener) media.addListener(onSystemChange);
+}
 
 // Standalone pages (login, registration, password reset) have no shared header.
 if (document.body.classList.contains('login-page')) {

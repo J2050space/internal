@@ -130,6 +130,7 @@ tr.sub td:first-child { padding-left: 22px; }
 .tw td input:disabled, .tw td select:disabled { color: var(--text); opacity: 1; cursor: default; }
 .tw td input.note-in { font-size: 0.75rem; color: var(--muted); }
 .req { display: block; font-size: 0.6875rem; color: var(--muted); }
+:root[data-theme="dark"] .req { color: #b3b9c2; } /* 5.36:1 on the late-start row tint */
 .note { display: inline-block; margin: 2px 4px 0 0; padding: 0 6px; border-radius: 3px; font-size: 10px; font-weight: 600; background: var(--accent-soft); color: var(--accent); letter-spacing: .03em; }
 .mono { font-family: var(--mono); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .bad { color: var(--st-late); font-weight: 600; }
