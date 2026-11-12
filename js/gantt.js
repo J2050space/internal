@@ -355,7 +355,7 @@ function gantt(all) {
     const nKids = all.filter((c) => c.parent_id === t.id).length;
     const caret = t.hasChildren
       ? `<button type="button" class="caret" data-toggle="${t.id}" aria-expanded="${!ui.collapsed.has(t.id)}"
-          title="${ui.collapsed.has(t.id) ? `Show ${nKids} subtasks` : 'Hide subtasks'}">${ui.collapsed.has(t.id) ? '▸' : '▾'}</button>`
+          title="${ui.collapsed.has(t.id) ? `Show ${nKids} subtasks` : 'Hide subtasks'}">${ui.collapsed.has(t.id) ? icon('chevron-right', 12) : icon('chevron-down', 12)}</button>`
       : '<span class="caret-sp"></span>';
     const addSub = ADMIN && t.depth === 0
       ? `<button type="button" class="addsub" data-addsub="${t.id}" title="Add a subtask to ${esc(t.code)}">+</button>` : '';
@@ -369,7 +369,7 @@ function gantt(all) {
       dl += `<span class="dl${t.atRisk ? ' risk' : ''}" style="left:${dx}px" title="Deadline ${formatDate(t.deadline)}"></span>`;
     }
     const label = `${t.depth ? '' : caret}<a href="#" class="tlink" data-open="${t.id}"><span class="code">${esc(t.code)}</span><span class="n">${esc(t.name)}</span></a>` +
-      `${t.blockedAny ? '<span class="flag" title="Blocked">■</span>' : ''}${addSub}`;
+      `${t.blockedAny ? '<span class="flag" role="img" aria-label="Blocked" title="Blocked"></span>' : ''}${addSub}`;
     rows += `<div class="grow" style="height:${RH}px">
       <div class="glabel${t.depth ? ' sub' : ''}" title="${esc(tip)}">${label}</div>
       <div class="track" style="width:${W}px">
@@ -482,7 +482,7 @@ function events() {
     <td class="mono">${days(dn(ev.event_date) - TN)}</td>
     <td style="white-space:nowrap">${!ADMIN ? '' : ui.confirmDel === `ev${ev.id}`
       ? `<button type="button" class="act danger" data-act="evdel2" data-id="${ev.id}">Delete?</button>`
-      : `<button type="button" class="act secondary" data-act="evdel" data-id="${ev.id}" title="Delete the event">✕</button>`}</td></tr>`).join('');
+      : `<button type="button" class="act secondary" data-act="evdel" data-id="${ev.id}" title="Delete the event" aria-label="Delete the event">${icon('x', 12)}</button>`}</td></tr>`).join('');
   const addRow = !ADMIN ? '' : `<tr>
     <td><input type="date" id="ev-date"></td>
     <td><input type="text" id="ev-label" maxlength="40" placeholder="Label"></td>
