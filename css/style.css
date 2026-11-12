@@ -1,10 +1,3 @@
-@font-face {
-  font-family: 'Play';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/play-700.woff2') format('woff2');
-}
 
 @font-face {
   font-family: 'Geist';
@@ -37,7 +30,7 @@
   --info-bg: #e8f0fa;
   --font-body: "Geist", Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --font-display: "Play", Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-display: "Geist", Arial, "Helvetica Neue", Helvetica, sans-serif;
 }
 
 * { box-sizing: border-box; }
