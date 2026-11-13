@@ -3,11 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="only light">
   <title>J2050 Team Management – Create account</title>
+  <script>
+    // Apply the saved theme before the first paint (key documented in js/theme.js).
+    try {
+      const saved = localStorage.getItem('j2050-theme');
+      document.documentElement.dataset.theme =
+        saved === 'dark' || saved === 'light' ? saved
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch {
+      document.documentElement.dataset.theme =
+        matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+  </script>
   <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/theme.js"></script>
 </head>
 <body class="login-page">
   <main class="login-box">
+    <div class="auth-brand">
+      <span class="brand-logo" role="img" aria-label="J2050">
+        <img class="logo-on-light" src="img/j2050-logo-light.png" width="239" height="88" alt="">
+        <img class="logo-on-dark" src="img/j2050-logo-dark.png" width="241" height="88" alt="">
+      </span>
+      <span class="brand-sub">University of Padova</span>
+    </div>
     <h1>Create account</h1>
     <form id="register-form" novalidate>
       <p class="hint">Use your @studenti.unipd.it or @unipd.it address.</p>
@@ -21,6 +42,7 @@
     </form>
     <p id="register-msg" class="message" role="alert" hidden></p>
     <p class="links"><a href="index.html">Back to login</a></p>
+    <p class="auth-foot">Internal tool · Authorised members only</p>
   </main>
 
   <script type="module">

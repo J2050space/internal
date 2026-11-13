@@ -9,6 +9,7 @@
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, TIME_ZONE } from './format.js';
+import { icon } from './icons.js';
 
 /* ---------- constants ---------- */
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -41,6 +42,7 @@ const COARSE = typeof window.matchMedia === 'function' && window.matchMedia('(po
 
 const stored = (key, fallback) => { try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } };
 const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } };
+const DEFAULT_PX = window.matchMedia('(max-width: 640px)').matches ? ZOOMS[0] : 7;
 
 // Message at the bottom, optionally with an action button (e.g. Undo)
 function toast(message, action) {
@@ -105,9 +107,16 @@ let ALL = [];                 // derived, ordered
 const ui = {
   view: 'gantt', dept: 'All', deptView: 'SYS', q: '', hideDone: false, confirmDel: null,
   edit: false,
-  px: ZOOMS.includes(stored('gantt-px', 7)) ? stored('gantt-px', 7) : 7,
+  px: ZOOMS.includes(stored('gantt-px', DEFAULT_PX)) ? stored('gantt-px', DEFAULT_PX) : DEFAULT_PX,
   collapsed: new Set(stored('gantt-collapsed', [])),
 };
+
+// Keep the mobile default when the viewport crosses the breakpoint, unless the user chose a zoom.
+const mobileQuery = window.matchMedia('(max-width: 640px)');
+mobileQuery.addEventListener('change', (e) => {
+  if (stored('gantt-px', null) === null) ui.px = e.matches ? ZOOMS[0] : 7;
+  render();
+});
 
 async function load() {
   const [t, d, ev, pr, tl] = await Promise.all([
@@ -261,17 +270,17 @@ function toolbar(gantt) {
   const ganttTools = gantt ? `<span class="zoom" role="group" aria-label="Zoom">
       <button type="button" class="secondary" data-act="zoom-out" title="Zoom out"${ui.px === ZOOMS[0] ? ' disabled' : ''}>−</button>
       <button type="button" class="secondary" data-act="zoom-in" title="Zoom in"${ui.px === ZOOMS[ZOOMS.length - 1] ? ' disabled' : ''}>+</button></span>
-    <button type="button" class="secondary" data-act="expand-all">Expand all</button>
-    <button type="button" class="secondary" data-act="collapse-all">Collapse all</button>
+    <button type="button" class="secondary btn-icon" data-act="expand-all" title="Expand all" aria-label="Expand all">${icon('chevrons-down')}</button>
+    <button type="button" class="secondary btn-icon" data-act="collapse-all" title="Collapse all" aria-label="Collapse all">${icon('chevrons-up')}</button>
     ${ADMIN && !COARSE ? `<label class="chk edit-toggle${ui.edit ? ' on' : ''}"><input type="checkbox" id="edit-mode"${ui.edit ? ' checked' : ''}> Edit timeline</label>` : ''}` : '';
   const mode = !ADMIN ? 'Read only: click a task to see its details.'
     : gantt && ui.edit ? 'Edit timeline ON: drag a bar to move it, its ends to change start or end. Esc cancels a drag.'
       : 'Click a task to open it.';
-  return `<div class="bar-tools">${ADMIN ? '<button type="button" data-act="new-task">New task</button>' : ''}${dept}${ganttTools}
+  return `<div class="bar-tools">${ADMIN ? `<button type="button" class="btn-with-icon" data-act="new-task">${icon('plus')} New task</button>` : ''}${dept}${ganttTools}
     <input id="q" type="search" placeholder="Search task or person" value="${esc(ui.q)}" aria-label="Search">
     <label class="chk"><input type="checkbox" id="hd"${ui.hideDone ? ' checked' : ''}> Hide done</label>
-    <button type="button" class="secondary" data-act="csv">Export CSV</button>
-    <button type="button" class="secondary" data-act="reload">Reload</button>
+    <button type="button" class="secondary btn-icon" data-act="csv" title="Export CSV" aria-label="Export CSV">${icon('download')}</button>
+    <button type="button" class="secondary btn-icon" data-act="reload" title="Reload" aria-label="Reload">${icon('rotate-cw')}</button>
     <span class="mode">${mode}</span>
   </div>`;
 }
@@ -346,7 +355,7 @@ function gantt(all) {
     const nKids = all.filter((c) => c.parent_id === t.id).length;
     const caret = t.hasChildren
       ? `<button type="button" class="caret" data-toggle="${t.id}" aria-expanded="${!ui.collapsed.has(t.id)}"
-          title="${ui.collapsed.has(t.id) ? `Show ${nKids} subtasks` : 'Hide subtasks'}">${ui.collapsed.has(t.id) ? '▸' : '▾'}</button>`
+          title="${ui.collapsed.has(t.id) ? `Show ${nKids} subtasks` : 'Hide subtasks'}">${ui.collapsed.has(t.id) ? icon('chevron-right', 12) : icon('chevron-down', 12)}</button>`
       : '<span class="caret-sp"></span>';
     const addSub = ADMIN && t.depth === 0
       ? `<button type="button" class="addsub" data-addsub="${t.id}" title="Add a subtask to ${esc(t.code)}">+</button>` : '';
@@ -360,7 +369,7 @@ function gantt(all) {
       dl += `<span class="dl${t.atRisk ? ' risk' : ''}" style="left:${dx}px" title="Deadline ${formatDate(t.deadline)}"></span>`;
     }
     const label = `${t.depth ? '' : caret}<a href="#" class="tlink" data-open="${t.id}"><span class="code">${esc(t.code)}</span><span class="n">${esc(t.name)}</span></a>` +
-      `${t.blockedAny ? '<span class="flag" title="Blocked">■</span>' : ''}${addSub}`;
+      `${t.blockedAny ? '<span class="flag" role="img" aria-label="Blocked" title="Blocked"></span>' : ''}${addSub}`;
     rows += `<div class="grow" style="height:${RH}px">
       <div class="glabel${t.depth ? ' sub' : ''}" title="${esc(tip)}">${label}</div>
       <div class="track" style="width:${W}px">
@@ -473,7 +482,7 @@ function events() {
     <td class="mono">${days(dn(ev.event_date) - TN)}</td>
     <td style="white-space:nowrap">${!ADMIN ? '' : ui.confirmDel === `ev${ev.id}`
       ? `<button type="button" class="act danger" data-act="evdel2" data-id="${ev.id}">Delete?</button>`
-      : `<button type="button" class="act secondary" data-act="evdel" data-id="${ev.id}" title="Delete the event">✕</button>`}</td></tr>`).join('');
+      : `<button type="button" class="act secondary" data-act="evdel" data-id="${ev.id}" title="Delete the event" aria-label="Delete the event">${icon('x', 12)}</button>`}</td></tr>`).join('');
   const addRow = !ADMIN ? '' : `<tr>
     <td><input type="date" id="ev-date"></td>
     <td><input type="text" id="ev-label" maxlength="40" placeholder="Label"></td>
@@ -612,17 +621,17 @@ function openEditor(id, preset = {}) {
       ${t && !t.parent_id ? `<h3>Subtasks (${children.length})</h3>
         ${children.length ? `<ul class="ed-children">${children.map((c) => `<li><a href="#" data-goto="${c.id}"><span class="code">${esc(c.code)}</span> ${esc(c.name)}</a>
           <span class="hint">${formatDate(c.start_date)} – ${formatDate(c.end_date)} · ${STATUS[c.status]}${c.blocked ? ' · blocked' : ''}</span></li>`).join('')}</ul>` : '<p class="hint">None.</p>'}
-        ${ro ? '' : '<button type="button" class="secondary" data-ed="add-sub">Add subtask</button>'}` : ''}
+        ${ro ? '' : `<button type="button" class="secondary btn-with-icon" data-ed="add-sub">${icon('plus')} Add subtask</button>`}` : ''}
 
       ${t ? '<details class="ed-hist" id="ed-hist"><summary>Change history</summary><div id="ed-hist-body"><p class="hint">Loading…</p></div></details>' : ''}
 
       <p class="message" id="ed-msg" role="alert" hidden></p>
       <div class="buttons">
-        ${t && !ro ? '<button type="button" class="danger" data-ed="delete">Delete…</button>' : ''}
-        ${t && !ro ? '<button type="button" class="secondary" data-ed="duplicate">Duplicate</button>' : ''}
+        ${t && !ro ? `<button type="button" class="danger btn-with-icon" data-ed="delete">${icon('trash-2')} Delete…</button>` : ''}
+        ${t && !ro ? `<button type="button" class="secondary btn-with-icon" data-ed="duplicate">${icon('copy')} Duplicate</button>` : ''}
         <span class="spacer"></span>
-        <button type="button" class="secondary" data-ed="close">${ro ? 'Close' : 'Cancel'}</button>
-        ${ro ? '' : `<button type="submit">${t ? 'Save' : 'Create'}</button>`}
+        <button type="button" class="secondary btn-with-icon" data-ed="close">${icon('x')} ${ro ? 'Close' : 'Cancel'}</button>
+        ${ro ? '' : `<button type="submit" class="btn-with-icon">${icon('check')} ${t ? 'Save' : 'Create'}</button>`}
       </div>
     </form></div>`;
   m.hidden = false;

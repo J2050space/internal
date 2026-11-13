@@ -3,9 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="only light">
   <title>J2050 Team Management – Members</title>
-  <link rel="stylesheet" href="css/style.css">
-</head>
+  <script>
+    // Apply the saved theme before the first paint (key documented in js/theme.js).
+    try {
+      const saved = localStorage.getItem('j2050-theme');
+      document.documentElement.dataset.theme =
+        saved === 'dark' || saved === 'light' ? saved
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch {
+      document.documentElement.dataset.theme =
+        matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+  </script>
+  <link rel="stylesheet" href="css/style.css"></head>
 <body>
   <header id="app-header"></header>
   <main id="app-main">
@@ -92,7 +104,7 @@
     }
 
     function table(headers, rows) {
-      const scroller = el('div', null, 'table-scroll');
+      const scroller = el('div', null, 'table-scroll cards');
       const t = document.createElement('table');
       const thead = document.createElement('thead');
       const tr = document.createElement('tr');
@@ -100,7 +112,11 @@
       thead.appendChild(tr);
       t.appendChild(thead);
       const tbody = document.createElement('tbody');
-      rows.forEach((r) => tbody.appendChild(r));
+      rows.forEach((r) => {
+        // Labels let the CSS turn rows into cards on narrow screens.
+        [...r.children].forEach((td, i) => { if (headers[i]) td.dataset.label = headers[i]; });
+        tbody.appendChild(r);
+      });
       t.appendChild(tbody);
       scroller.appendChild(t);
       return scroller;

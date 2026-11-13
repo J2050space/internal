@@ -1,5 +1,7 @@
 // Shared authentication, profile and navigation helpers.
 import { supabase } from './config.js';
+import { icon } from './icons.js';
+import { mountThemeToggle } from './theme.js';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const ALLOWED_DOMAINS = ['studenti.unipd.it', 'unipd.it'];
@@ -82,7 +84,13 @@ export async function signOut() {
 export function renderHeader(profile, activePage) {
   const header = document.getElementById('app-header');
   header.innerHTML = `
-    <div class="brand">J2050 Team Management</div>
+    <a class="brand" href="shifts.html">
+      <span class="brand-logo" role="img" aria-label="J2050">
+        <img class="logo-on-light" src="img/j2050-logo-light.png" width="239" height="88" alt="">
+        <img class="logo-on-dark" src="img/j2050-logo-dark.png" width="241" height="88" alt="">
+      </span>
+      <span class="brand-sub">Team Management</span>
+    </a>
     <nav>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
       <a href="gantt.html" data-page="gantt">Gantt</a>
@@ -93,15 +101,18 @@ export function renderHeader(profile, activePage) {
     <div class="user">
       <span id="user-name"></span>
       <span id="user-role" class="badge"></span>
-      <button id="logout-btn" type="button" class="secondary">Log out</button>
+      <button id="logout-btn" type="button" class="secondary btn-icon" aria-label="Log out" title="Log out">${icon('log-out')}</button>
     </div>`;
   if (profile.role === 'admin') {
     header.querySelectorAll('[data-admin]').forEach((el) => { el.hidden = false; });
   }
-  header.querySelector(`[data-page="${activePage}"]`)?.classList.add('active');
+  const activeLink = header.querySelector(`[data-page="${activePage}"]`);
+  activeLink?.classList.add('active');
+  activeLink?.scrollIntoView({ block: 'nearest', inline: 'center' });
   header.querySelector('#user-name').textContent = displayName(profile);
   header.querySelector('#user-role').textContent = profile.role;
   header.querySelector('#logout-btn').addEventListener('click', signOut);
+  mountThemeToggle(header.querySelector('.user'));
 }
 
 // Start-up sequence of a protected page.
