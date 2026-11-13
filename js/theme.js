@@ -1,17 +1,56 @@
 // Theme handling: a stored choice wins; without one the operating system decides.
-// The inline script in each page's <head> reads the same key before the first paint,
-// so this module must not change the key or the value format (plain 'light' | 'dark').
+// The choice lives in a cookie (shared across ports and origins of the same host)
+// and in localStorage (survives a cleared cookie jar), both written on every toggle.
+// The cookie is read first, so a preview served from another port matches the app.
+// The inline script in each page's <head> reads both stores before the first paint,
+// so this module must not change the key/name or the value format ('light' | 'dark').
 export const THEME_KEY = 'j2050-theme';
+export const THEME_COOKIE = THEME_KEY;
+
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // one year
 
 const media = window.matchMedia('(prefers-color-scheme: dark)');
-let explicit = storedTheme() !== null;
+const initialTheme = storedTheme();
+let explicit = initialTheme !== null;
+
+function readCookie(name) {
+  for (const part of document.cookie.split(';')) {
+    const [key, ...value] = part.trim().split('=');
+    if (key === name) return decodeURIComponent(value.join('='));
+  }
+  return null;
+}
+
+function writeCookie(name, value) {
+  const secure = location.protocol === 'https:' ? '; Secure' : '';
+  try {
+    document.cookie =
+      `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax${secure}`;
+  } catch {
+    // Cookies unavailable: localStorage alone carries the choice.
+  }
+}
 
 export function storedTheme() {
+  // The cookie wins: it is the copy shared across ports and origins, and every
+  // toggle writes both stores, so a disagreeing localStorage is the stale one.
+  let value = readCookie(THEME_COOKIE);
+  if (value !== 'light' && value !== 'dark') {
+    try {
+      value = localStorage.getItem(THEME_KEY);
+    } catch {
+      // Storage unavailable (private mode): the cookie already decided.
+    }
+  }
+  return value === 'dark' || value === 'light' ? value : null;
+}
+
+// Keep the per-origin copy aligned with the shared one.
+if (explicit) {
   try {
-    const value = localStorage.getItem(THEME_KEY);
-    return value === 'dark' || value === 'light' ? value : null;
+    localStorage.setItem(THEME_KEY, initialTheme);
   } catch {
-    return null; // storage unavailable (private mode)
+    // Storage unavailable: the inline script keeps reading the cookie.
   }
 }
 
@@ -42,8 +81,9 @@ export function setTheme(theme) {
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {
-    // Storage unavailable: the choice lasts for this page only.
+    // Storage unavailable: the cookie carries the choice.
   }
+  writeCookie(THEME_COOKIE, theme);
   applyTheme(theme);
 }
 
