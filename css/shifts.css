@@ -41,7 +41,7 @@
 .s-top h1 { margin: 0; }
 .s-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .s-tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 10px; }
-.s-tools .range { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: .04em; color: var(--text); }
+.s-tools .range { font-family: var(--font-body); font-size: 0.75rem; font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; color: var(--text); }
 .s-tools button { min-height: 32px; padding: 0 10px; font-size: 0.8125rem; }
 label.chk { display: flex; gap: 7px; align-items: center; color: var(--muted); font-size: 0.8125rem; font-weight: 400; margin: 0; }
 label.chk input { width: auto; min-height: 0; }

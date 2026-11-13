@@ -360,11 +360,10 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 :root[data-theme="dark"] .brand-logo .logo-on-light { display: none; }
 :root[data-theme="dark"] .brand-logo .logo-on-dark { display: block; }
 .brand-sub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--muted-strong);
   white-space: nowrap;
 }
@@ -414,12 +413,11 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 .links a:hover { color: var(--text); }
 .auth-foot {
   margin: 18px 0 0;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-strong);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
 }
 
 /* ---------- App header ---------- */
@@ -446,6 +444,8 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
   text-decoration: none;
 }
 #app-header .brand:hover { text-decoration: none; }
+/* The lockup descriptor is secondary to the navigation, so it stays a size down. */
+#app-header .brand-sub { font-size: 11.5px; font-weight: 400; color: var(--muted); }
 #app-header nav { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; }
 #app-header nav a {
   padding: 6px 10px;
