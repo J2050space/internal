@@ -459,8 +459,10 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 #app-header nav a.active {
   color: var(--text);
   font-weight: 600;
-  background: color-mix(in srgb, var(--text) 10%, transparent);
-  box-shadow: 0 0 0 1px var(--border);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  /* Inset marker: the old outer ring was clipped by the scrolling nav on mobile. */
+  box-shadow: inset 0 -2px 0 var(--accent);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 #app-header .user { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 0.8125rem; }
 #app-header #user-name { color: var(--text); font-weight: 500; }
@@ -575,7 +577,7 @@ td select, td input:not([type="checkbox"]):not([type="radio"]) { width: 100%; mi
   }
   #app-header .brand { grid-area: brand; min-width: 0; }
   #app-header .brand-sub { display: none; }
-  #app-header nav { grid-area: nav; flex-wrap: nowrap; gap: 2px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  #app-header nav { grid-area: nav; flex-wrap: nowrap; gap: 2px; overflow-x: auto; padding: 4px 0 2px; scrollbar-width: none; }
   #app-header nav::-webkit-scrollbar { display: none; }
   #app-header nav a { flex: none; padding: 5px 9px; }
   #app-header .user { grid-area: user; justify-self: end; min-width: 0; }
