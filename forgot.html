@@ -6,16 +6,19 @@
   <meta name="color-scheme" content="only light">
   <title>J2050 Team Management – Forgot password</title>
   <script>
-    // Apply the saved theme before the first paint (key documented in js/theme.js).
+    // Apply the saved theme before the first paint (keys documented in js/theme.js).
+    // The cookie is read first (it is shared across ports); localStorage covers a
+    // cleared cookie jar.
+    const themeCookie = document.cookie.match(/(?:^|;\s*)j2050-theme=(light|dark)(?:;|$)/);
+    let saved = themeCookie ? themeCookie[1] : null;
     try {
-      const saved = localStorage.getItem('j2050-theme');
-      document.documentElement.dataset.theme =
-        saved === 'dark' || saved === 'light' ? saved
-          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      saved = saved || localStorage.getItem('j2050-theme');
     } catch {
-      document.documentElement.dataset.theme =
-        matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      // Storage unavailable: the cookie still decides.
     }
+    document.documentElement.dataset.theme =
+      saved === 'dark' || saved === 'light' ? saved
+        : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="css/style.css">
   <script type="module" src="js/theme.js"></script>
