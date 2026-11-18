@@ -1,8 +1,9 @@
 -- =====================================================================
 -- J2050 internal tools - migration 012
--- Scope: brings a database seeded with the first version of 011 (draft
--- timeline) to the data of the current 011. On a database built with the
--- current 011 it changes nothing.
+-- ONLY FOR THE PRODUCTION DATABASE, where the first versions of 010 and
+-- 011 (draft timeline) were applied. A new database needs only 010 and
+-- 011. It brings the production database to the current 010 and 011:
+--   * doc_new_version: number of the first version can be chosen.
 --   * Old milestones (PDR, CDR, TRR-TRB, AR, FRR) are deleted with their
 --     requirements.
 --   * Documents of the first 011 no longer in the list are deleted unless
@@ -18,10 +19,57 @@
 -- Requirements marked "assumption" in their note are not in the ESA
 -- lists. Documents without requirement are assigned from the site.
 -- NCR, RFD and RFW are created when needed: no fixed document.
--- Prerequisite: migrations 010 and 011 (first version) applied.
--- Run once in Supabase > SQL Editor. Runs as one transaction.
+-- Can be run again: it restores the seeded data (milestone names and
+-- notes, document names, levels and notes of the seeded requirements);
+-- dates, responsibles, versions and links to tasks are kept.
+-- Prerequisite: migrations 010 and 011 (first versions) applied.
+-- Run in Supabase > SQL Editor. Runs as one transaction.
 -- =====================================================================
 begin;
+
+-- ---------------------------------------------------------------------
+-- 0. Versions: number of the first version can be chosen (as in 010)
+-- ---------------------------------------------------------------------
+drop function if exists public.doc_new_version(bigint, text, text);
+
+-- Start the next version. p_version: number of the first version only
+-- (default V00); later versions are numbered last + 1. The previous
+-- version shall have left the internal review.
+create or replace function public.doc_new_version(
+  p_document_id bigint,
+  p_file_url    text    default null,
+  p_change_note text    default null,
+  p_version     integer default null
+) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_last document_versions%rowtype;
+  v_next integer;
+  v_id   bigint;
+begin
+  if not private.can_edit_document(p_document_id) then raise exception 'Not authorized'; end if;
+  perform 1 from documents where id = p_document_id for update;
+  if not found then raise exception 'Document not found'; end if;
+  select * into v_last from document_versions where document_id = p_document_id order by version desc limit 1;
+  if found then
+    if p_version is not null and p_version <> v_last.version + 1 then
+      raise exception 'Version number can be chosen only for the first version';
+    end if;
+    if v_last.status in ('in_progress', 'in_review') then raise exception 'Previous version not released'; end if;
+    if v_last.version >= 99 then raise exception 'Version limit reached'; end if;
+    v_next := v_last.version + 1;
+  else
+    v_next := coalesce(p_version, 0);
+    if v_next < 0 or v_next > 99 then raise exception 'Version number out of range'; end if;
+  end if;
+  insert into document_versions (document_id, version, file_url, change_note)
+  values (p_document_id, v_next, nullif(trim(p_file_url), ''), nullif(trim(p_change_note), ''))
+  returning id into v_id;
+  return v_id;
+end $$;
+
+revoke execute on function public.doc_new_version(bigint, text, text, integer) from public, anon;
+grant  execute on function public.doc_new_version(bigint, text, text, integer) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 1. Milestones
