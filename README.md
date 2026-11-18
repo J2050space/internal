@@ -58,6 +58,8 @@ A new account is `pending` until an admin approves it in `members.html`.
 - File name according to the J2050 Documentation Manual: `[SUBTEAM]_[TYPE]_[Title]_VXX` (e.g. `TTC_AREP_LinkBudget_V00`).
   Subteam codes: the departments plus `RED` (whole team, RedPill as a whole). Type codes as in the manual, plus `LOG` (logbooks and histories of an item). Subteam, type and title are fixed after the first approved version.
 - One responsible per document (active teamleader or admin); other subteams and people can be involved.
+- Links: the SharePoint folder and the working file (Word, Excel; one for all versions) on the document, the PDF on each version.
+  An approved version is frozen, also for admins: changes go in the next version (an admin can reset a version, with history).
 - Versions V00, V01, ... (the first version can start from another number, to continue the numbering of a document started on SharePoint): In progress → In review → Approved (admins) → Sent to ESA (link to the ESA SharePoint copy) → Accepted by ESA, or ESA changes required (comments). An admin can return a version in review with a note.
 - Rights: new documents by teamleaders (who become responsible) and admins; document and versions by the responsible and admins; approval, milestones and required documents by admins.
 - Required documents: document × milestone with level (draft, release, update, ad hoc), optional Gantt task that produces it, version that fulfils it.
@@ -80,7 +82,8 @@ Each script runs as a single transaction.
 | `008_gantt_editing.sql` | Atomic task save, concurrent-change check, change history |
 | `009_gantt_reset_new_model.sql` | Gantt reset, task codes, new date and status model |
 | `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
-| `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D DRDs and of the former SharePoint tracker, required level per milestone |
+| `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D and environmental testing DRDs, of the Satellite Project File DRD and of the former SharePoint tracker, required level per milestone |
+| `012_documents_spf_annexes.sql` | Only for the production database (created with the former 010-013): working file link, frozen approved versions, annexes of the Satellite Project File. A new database needs only 010 and 011 |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.

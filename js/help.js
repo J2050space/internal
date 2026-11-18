@@ -163,13 +163,15 @@ const PAGES = {
       <h3>Versions</h3>
       <ol>
         <li><b>Start first version</b>: usually V00; a document already started on SharePoint continues its numbering (e.g. V04 after V03).
-          Then <b>Start V01</b>, V02, …: version <i>In progress</i>, with the link to the file.</li>
-        <li><b>Submit for review</b> (file link required). <i>Withdraw</i> brings it back in progress.</li>
+          Then <b>Start V01</b>, V02, …: version <i>In progress</i>. You work on the <b>working file</b> (Word, Excel) linked in the document.</li>
+        <li>Export the PDF of the version and <b>Submit for review</b> with its link (required): the reviewer checks that PDF. <i>Withdraw</i> brings it back in progress.</li>
         <li>An administrator <b>Approves</b> it, or <b>Returns</b> it with what has to be changed.</li>
         <li><b>Sent to ESA</b>: date, link to the copy on the ESA SharePoint, and the milestones this version fulfils.</li>
         <li><b>ESA outcome</b>: <i>Accepted by ESA</i>, or <i>Changes required</i> with the ESA comments, to address in the next version.</li>
       </ol>
-      <p>A new version can be started when the previous one has been approved. Subteam, type and title are fixed after the first approved version.</p>
+      <p>An <b>approved</b> version is frozen, also for administrators: its PDF stays as approved. Only the ESA link and comments can still be added. Changes go in the next version: after approving V02, rename the working file to V03 in place (the link stays valid) and start V03. An administrator can <i>Reset</i> a version (recorded in the history) to correct an error.</p>
+      <p>Quick links in the Register and at the top of a document: <b>Edit</b> = working file, <b>PDF</b> = last approved version, <b>Folder</b>.</p>
+      <p>Subteam, type and title are fixed after the first approved version.</p>
       <h3>Deliveries and Gantt</h3>
       <ul>
         <li>Each document can be required at one or more milestones. Due date = <i>data package due</i> of the milestone, or its review date.</li>
@@ -301,13 +303,14 @@ const FIELDS = {
     'e-esa': 'Code of the ESA deliverable (e.g. TS-VCD, DDJF). Empty for internal documents.',
     'e-resp': 'The one person accountable for the document: an active teamleader or admin. With the administrators, the only one who edits it and moves its versions. Only administrators change it.',
     'e-prio': 'Priority for the team. Informative only.',
-    'e-folder': 'Link to the SharePoint folder with the working files of the document.',
+    'e-folder': 'Link to the SharePoint folder of the document: working file, PDFs of the versions, attachments.',
+    'e-work': 'Link to the file you edit (Word, Excel…). One file for all versions: after a release rename it in place to the next version, the link stays valid. Open it with "Edit".',
     'lbl:Other subteams involved': 'Subteams contributing to the document: it also appears when filtering by them.',
     'e-people': 'People writing or contributing, also without an account. Free text.',
     'e-hold': 'Work suspended. Give the reason; the document is shown as "On hold" and can be filtered.',
     'e-note': 'Free note on the document.',
     'p-num': 'Number of the first version on the site: V00 for a new document. For a document already on SharePoint, the number after its last version there (V03 there: 4). The following versions are numbered automatically.',
-    'p-file': 'Link to the file of this version (SharePoint). Optional when starting the version, required to submit it for review.',
+    'p-file': 'Link to the PDF of this version (SharePoint). Optional when starting the version, required to submit it for review. Cannot be changed after the approval.',
     'p-change': 'What changes compared with the previous version (e.g. "Updated after the CDR comments").',
     'p-note': 'What the responsible has to change before submitting the version again. Shown in the list of versions.',
     'p-sent': 'Day the version was uploaded for ESA. Not in the future.',

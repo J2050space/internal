@@ -67,3 +67,6 @@ tr:hover button.rq.add, button.rq.add:focus { border-color: var(--border); }
 .vpanel .pk input { width: auto; }
 .mbox label.pk.chk input { width: auto; }
 ul.ed-children li > span { flex: 1; }
+
+/* Quick links of a document in the register */
+td.links { white-space: nowrap; }

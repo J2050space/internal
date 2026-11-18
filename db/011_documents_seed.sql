@@ -7,13 +7,17 @@
 --     ([SUBTEAM]_[TYPE]_[Title]); no versions, no responsible.
 --   * Required level of each document at each milestone.
 -- Sources: milestone and deliverables summaries of the FYS4 training week
--- (Phase D1 and D2) and FYS4 Phase D DRDs and Guidelines v1.0; documents
--- of the former SharePoint document tracker (titles only, no status).
+-- (Phase D1 and D2), FYS4 Phase D DRDs and Guidelines v1.0, FYS4
+-- Environmental Testing DRDs v1.0, FYS DRD Satellite Project File
+-- (chapters and annexes); documents of the former SharePoint document
+-- tracker (titles only, no status).
 -- RedPill is treated as a PocketQube (FYS Design Specification for
 -- PocketQubes): the EQSL is listed but not required at a milestone.
 -- Requirements marked "assumption" in their note are not in the ESA
 -- lists. Documents without requirement are assigned from the site.
--- NCR, RFD and RFW are created when needed: no fixed document.
+-- NCR, RFD, RFW and trade-off reports are created when needed: no fixed
+-- document. Test Readiness and Post Test Review minutes go in the test
+-- reports; datasheets of COTS items in the Datasheets folder.
 -- Prerequisite: migration 010 applied.
 -- Run once in Supabase > SQL Editor. Runs as one transaction.
 -- =====================================================================
@@ -56,8 +60,13 @@ insert into public.milestones (code, name, phase, sort_order, note) values
 insert into public.documents (subteam, doc_type, title, name, esa_code, subteams, note) values
   -- Kick Off Review
   ('SYS', 'DREP', 'SatelliteProjectFile',         'Satellite Project File',                                   'SPF',       '{}', 'Derived from the Satellite Proposal.'),
-  ('SYS', 'AREP', 'FailureModesEffects',          'Failure Modes, Effects and Criticality Analysis, FDIR',    'FMECA',     '{}', 'Basis of the FDIR verification in the functional and mission tests.'),
-  ('SYS', 'AREP', 'MissionAnalysis',              'Mission Analysis Report',                                  null,        '{}', null),
+  ('SYS', 'AREP', 'FailureModesEffects',          'FMEA Report (FMEA, HSIA, FDIR)',                           'FMEA-RPT',  '{}', 'Criticality analysis not requested in FYS. Basis of the FDIR verification in the functional and mission tests.'),
+  -- Annexes of the Satellite Project File (also: analyses, VCDs, DML, product tree below)
+  ('SYS', 'AREP', 'MissionAnalysis',              'Mission Analysis Report',                                  'MAR',       '{}', null),
+  ('AOCS', 'AREP', 'AOCSAnalysis',                 'AOCS Analysis Report',                                     'AOCS-ARPT', '{}', null),
+  ('MGT', 'PLAN', 'Schedule',                     'Project Schedule',                                         null,        '{}', 'Export of the Gantt of this site: milestones, deliveries, holidays and exam periods.'),
+  ('THS', 'CAD',  'Satellite',                    'Satellite CAD Model',                                      'CAD',       '{SYS}', 'STEP format preferred.'),
+  ('MGT', 'AREP', 'RiskRegister',                 'Project Risk Register',                                    'RR',        '{SYS}', 'Format tailored from ECSS-M-ST-80C (SPF DRD section 20).'),
   -- Assembly, integration, interfaces verification
   ('RED', 'PROC', 'QMIntegration',                'QM Assembly and Integration Procedure',                    null,        '{}', null),
   ('RED', 'PROC', 'SatelliteIntegration',         'FM Assembly and Integration Procedure',                    'AI-PRO',    '{}', 'System level. The as-run version closes the integration.'),
@@ -76,7 +85,7 @@ insert into public.documents (subteam, doc_type, title, name, esa_code, subteams
   -- Design and analysis of the subsystems
   ('TTC', 'DREP', 'AntennaMechanism',             'Antenna Deployment Mechanism Design Report',               null,        '{}', null),
   ('TTC', 'DREP', 'COMMSArchitecture',            'COMMS Architecture',                                       null,        '{}', null),
-  ('TTC', 'AREP', 'LinkDataBudget',               'Link and Data Budget Analysis Report',                     null,        '{}', null),
+  ('TTC', 'AREP', 'LinkDataBudget',               'Link and Data Budget Analysis Report',                     'LINK-ARPT', '{}', null),
   -- Functional test campaign
   ('SYS', 'TSTP', 'FullFunctionalTest',           'Full Functional Test Specification and Procedure',         'FFT-TSTP',  '{}', null),
   ('SYS', 'TSTP', 'MissionTest',                  'Mission Test Specification and Procedure',                 'MIS-TSTP',  '{}', 'May include the end-to-end test.'),
@@ -106,13 +115,14 @@ insert into public.documents (subteam, doc_type, title, name, esa_code, subteams
   -- Environmental test campaign: flight model
   ('SYS', 'TPLN', 'VibrationTest',                'FM Vibration Test Plan',                                   null,        '{}', null),
   ('SYS', 'TSTP', 'VibrationTest',                'FM Vibration Test Specification and Procedure',            'VIBE-TSTP', '{}', 'DRD in the FYS4 Environmental Testing DRDs and Guidelines.'),
-  ('SYS', 'TREP', 'VibrationTest',                'FM Vibration Test Report',                                 'VT-TRPT',   '{}', null),
+  ('SYS', 'TREP', 'VibrationTest',                'FM Vibration Test Report',                                 'VIBE-TRPT', '{}', null),
   ('SYS', 'TPLN', 'ThermalVacuumTest',            'FM Thermal Vacuum Test Plan',                              null,        '{}', null),
   ('SYS', 'TSTP', 'ThermalVacuumTest',            'FM Thermal Vacuum Test Specification and Procedure',       'TVAC-TSTP', '{}', 'DRD in the FYS4 Environmental Testing DRDs and Guidelines.'),
   ('SYS', 'TREP', 'ThermalVacuumTest',            'FM Thermal Vacuum Test Report',                            'TVAC-TRPT', '{}', null),
   ('SYS', 'DREP', 'DeclaredMaterials',            'Declared Materials List',                                  'DML',       '{THS}', 'ESA template on the FYS portal.'),
   ('THS', 'AREP', 'StructuralAnalysis',           'Structural Analysis Report',                               'STR-ARPT',  '{}', null),
   ('THS', 'AREP', 'ThermalAnalysis',              'Thermal Analysis Report',                                  'THR-ARPT',  '{}', null),
+  ('THS', 'AREP', 'ThermalCorrelation',           'Thermal Analysis Correlation Report',                      null,        '{}', 'Only if the TVAC test includes thermal balance phases.'),
   ('SYS', 'PLAN', 'SatelliteShipment',            'Shipment Plan',                                            null,        '{}', 'Transport to the ESA test facility: packaging, customs.'),
   ('SYS', 'MAN',  'GroundHandling',               'Ground Handling User Manual',                              'GHUM',      '{}', 'Travels with the satellite: shipment, tests, deployer integration.'),
   ('SYS', 'TREP', 'MDVReport',                    'MDV Report',                                               'MDV-RPT',   '{}', 'Listed in the FAR data package: confirm with ESA what MDV stands for, then rename.'),
@@ -134,6 +144,19 @@ create temp table seed_requirements (file text, milestone text, level text, note
 insert into seed_requirements values
   ('SYS_DREP_SatelliteProjectFile',         'KOR',      'release', null),
   ('SYS_AREP_FailureModesEffects',          'KOR',      'release', 'FME(C)A deliverable at the KOR.'),
+  ('SYS_AREP_MissionAnalysis',              'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('AOCS_AREP_AOCSAnalysis',                'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('TTC_AREP_LinkDataBudget',               'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('THS_AREP_StructuralAnalysis',           'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('THS_AREP_ThermalAnalysis',              'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('SYS_AREP_SpaceDebrisMitigation',        'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('SYS_DREP_DeclaredMaterials',            'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('SYS_DREP_ProductTree',                  'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('SYS_VCD_TechnicalSpecification',        'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('SYS_VCD_FYSDesignSpecification',        'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('MGT_PLAN_Schedule',                     'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('THS_CAD_Satellite',                     'KOR',      'update',  'Annex of the Satellite Project File.'),
+  ('MGT_AREP_RiskRegister',                 'KOR',      'update',  'Annex of the Satellite Project File.'),
 
   ('RED_PROC_SatelliteIntegration',         'IFV',      'release', 'As-run procedure with photos and videos of the integration.'),
   ('RED_LOG_SatelliteLogbook',              'IFV',      'ad_hoc',  'Started at the first assembly, kept up to date.'),
@@ -177,6 +200,8 @@ insert into seed_requirements values
   ('SYS_MAN_SatelliteOperations',           'FAR',      'update',  null),
   ('TTC_TREP_GroundStationTest',            'FAR',      'release', 'At the latest for the FAR.'),
   ('ELE_TREP_BatteryPackSafety',            'FAR',      'release', 'TBC by ESA.'),
+  ('ELE_TREP_BatteryPackAcceptance',        'FAR',      'release', 'Annex IV of the Battery Report (TBC by ESA).'),
+  ('THS_AREP_ThermalCorrelation',           'FAR',      'ad_hoc',  'Only with thermal balance phases in the TVAC test.'),
   ('SYS_AREP_SpaceDebrisMitigation',        'FAR',      'update',  null),
   ('MGT_PLAN_RegistrationAuthorisation',    'FAR',      'update',  null),
   ('SYS_AREP_LaunchSafetyDataPackage',      'FAR',      'draft',   'TBC by ESA, depends on the launch.'),

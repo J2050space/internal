@@ -76,7 +76,7 @@ const ERRORS = {
   'Version not in progress': 'The version is not in progress.',
   'Version not in review': 'The version is not in review.',
   'Version not approved': 'The version has not been approved yet.',
-  'File link required': 'Give the link to the file.',
+  'File link required': 'Give the link to the PDF of the version.',
   'Note required': 'Explain what has to be changed.',
   'ESA link required': 'Give the link to the copy on the ESA SharePoint.',
   'ESA comments required': 'Report the comments of ESA.',
@@ -169,6 +169,13 @@ const lastVersion = (d) => versionsOf(d)[0] ?? null;
 const docStatus = (d) => lastVersion(d)?.status ?? 'none';
 const canEdit = (d) => ADMIN || d.responsible_id === ME;
 const inWork = (v) => v && (v.status === 'in_progress' || v.status === 'in_review');
+// Last released version (approved or sent to ESA): its PDF is the current issue
+const releasedOf = (d) => versionsOf(d).find((v) => !inWork(v)) ?? null;
+const quickLinks = (d) => {
+  const rel = releasedOf(d);
+  return [link(d.working_url, 'Edit'), rel ? link(rel.file_url, `PDF ${vv(rel.version)}`) : '', link(d.folder_url, 'Folder')]
+    .filter(Boolean).join(' · ');
+};
 // Name of the file being prepared (last version in work) or of the next one
 const workingName = (d) => {
   const last = lastVersion(d);
@@ -299,11 +306,12 @@ function registerTable() {
       <td class="mono">${esc(d.esa_code ?? '')}</td>
       <td>${esc(nameOf(d.responsible_id)) || '<span class="bad">none</span>'}</td>
       <td>${statusBadge(docStatus(d))}</td>
+      <td class="links">${quickLinks(d)}</td>
       <td>${r ? `${levelSym(r.level)} ${esc(m.code)} <span class="${st === 'late' ? 'bad' : st === 'soon' ? 'warn' : ''}">${due ? formatDate(due) : 'date to set'}</span>${risk ? ` <span class="flag" title="${esc(risk)}">!</span>` : ''}` : ''}</td>
     </tr>`;
   }).join('');
   return `<div class="tw"><table class="ro">
-    <thead><tr><th>File name</th><th>Document</th><th>ESA</th><th>Responsible</th><th>Status</th><th>Next delivery</th></tr></thead>
+    <thead><tr><th>File name</th><th>Document</th><th>ESA</th><th>Responsible</th><th>Status</th><th>Links</th><th>Next delivery</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <p class="hint">${docs.length} documents. "!" = delivery not covered by a task of the Gantt, or task ending after the data package is due.</p>`;
 }
@@ -429,7 +437,7 @@ function openDoc(id) {
 
   let html = `<h2>${d ? `<span class="mono">${esc(workingName(d))}</span>` : 'New document'}
       ${d ? `<button type="button" class="act secondary" id="copy-name" title="Copy the file name">Copy name</button>` : ''}</h2>
-    <p class="meta">${d ? `${statusBadge(docStatus(d))} Responsible: ${esc(nameOf(d.responsible_id) || 'none')} · last change ${formatDateTime(d.updated_at)}` : 'File name: [SUBTEAM]_[TYPE]_[Title]_VXX (J2050 Documentation Manual).'}</p>
+    <p class="meta">${d ? `${statusBadge(docStatus(d))} Responsible: ${esc(nameOf(d.responsible_id) || 'none')} · last change ${formatDateTime(d.updated_at)}${quickLinks(d) ? ` · ${quickLinks(d)}` : ''}` : 'File name: [SUBTEAM]_[TYPE]_[Title]_VXX (J2050 Documentation Manual).'}</p>
     <div class="ed-grid">
       <div><label for="e-sub">Subteam</label><select id="e-sub"${dis || (locked ? ' disabled' : '')}>${subOptions(v.subteam, false)}</select></div>
       <div><label for="e-type">Type</label><select id="e-type"${dis || (locked ? ' disabled' : '')}>${typeOpts}</select></div>
@@ -438,7 +446,9 @@ function openDoc(id) {
       <div><label for="e-esa">ESA code</label><input id="e-esa" maxlength="20" placeholder="e.g. TS-VCD" value="${esc(v.esa_code ?? '')}"${dis}></div>
       <div><label for="e-resp">Responsible</label>${respField}</div>
       <div><label for="e-prio">Priority</label><select id="e-prio"${dis}><option value="">—</option>${['low', 'medium', 'high'].map((p) => `<option${v.priority === p ? ' selected' : ''}>${p}</option>`).join('')}</select></div>
-      <div><label for="e-folder">Folder (SharePoint)</label><input id="e-folder" type="url" value="${esc(v.folder_url ?? '')}"${dis}></div>
+      <div></div>
+      <div class="span3"><label for="e-folder">Folder (SharePoint)</label><input id="e-folder" type="url" value="${esc(v.folder_url ?? '')}"${dis}></div>
+      <div class="span3"><label for="e-work">Working file (Word, Excel…)</label><input id="e-work" type="url" value="${esc(v.working_url ?? '')}"${dis}></div>
       <div class="span3"><span class="lbl">Other subteams involved</span><div class="ed-teams">${SUBTEAMS.map((s) =>
         `<label class="pk"><input type="checkbox" name="e-subs" value="${s}"${v.subteams.includes(s) ? ' checked' : ''}${dis}> ${s}</label>`).join('')}</div></div>
       <div class="span3"><label for="e-people">People working on it</label><input id="e-people" value="${esc(v.people ?? '')}"${dis}></div>
@@ -476,7 +486,7 @@ async function saveDoc(d) {
   const fields = {
     subteam: $('#e-sub').value, doc_type: $('#e-type').value, title: val('e-title'), name: val('e-name'),
     esa_code: val('e-esa'), responsible_id: ADMIN ? $('#e-resp').value : (d?.responsible_id ?? ''),
-    priority: $('#e-prio').value, folder_url: val('e-folder'), people: val('e-people'),
+    priority: $('#e-prio').value, folder_url: val('e-folder'), working_url: val('e-work'), people: val('e-people'),
     subteams: [...document.querySelectorAll('input[name="e-subs"]:checked')].map((x) => x.value),
     on_hold: $('#e-hold').checked, on_hold_reason: val('e-hold-reason'), note: val('e-note'),
   };
@@ -496,7 +506,7 @@ function versionsHtml(d) {
     return `<tr>
       <td class="mono">${vv(v.version)}${v !== last ? ' <span class="req">old</span>' : ''}</td>
       <td>${statusBadge(v.status)}</td>
-      <td>${link(v.file_url, 'File')}${v.esa_url ? ` · ${link(v.esa_url, 'ESA copy')}` : ''}</td>
+      <td>${link(v.file_url, 'PDF')}${v.esa_url ? ` · ${link(v.esa_url, 'ESA copy')}` : ''}</td>
       <td>${v.change_note ? esc(v.change_note) : ''}
         ${v.review_note && v.status === 'in_progress' ? `<span class="req bad">To change: ${esc(v.review_note)}</span>` : ''}
         ${v.esa_comments ? `<span class="req">ESA: ${esc(v.esa_comments)}</span>` : ''}
@@ -524,7 +534,7 @@ function versionActions(v, isLast) {
     default: a.push(['esa', 'ESA outcome']);
   }
   if (ADMIN && v.status !== 'in_progress' && v.status !== 'in_review') a.push(['reset', 'Reset']);
-  if (isLast && (ADMIN || v.status === 'in_progress')) a.push(['delete', 'Delete', 'danger']);
+  if (isLast && v.status === 'in_progress') a.push(['delete', 'Delete', 'danger']);
   return a;
 }
 
@@ -548,12 +558,12 @@ function versionPanel(d, v, action) {
     const first = !versionsOf(d).length;
     body = `<div class="ed-grid">
       ${first ? '<div><label for="p-num">Version number</label><input id="p-num" type="number" min="0" max="99" step="1" value="0"></div><div class="span2"></div>' : ''}
-      <div class="span3"><label for="p-file">Link to the file (optional)</label><input id="p-file" type="url"></div>
+      <div class="span3"><label for="p-file">Link to the PDF (optional)</label><input id="p-file" type="url"></div>
       <div class="span3"><label for="p-change">What changes in this version</label><input id="p-change"></div></div>`;
   } else if (action === 'edit' || action === 'submit') {
-    body = `<div class="ed-grid"><div class="span3"><label for="p-file">Link to the file</label><input id="p-file" type="url" value="${esc(v.file_url ?? '')}"></div>
+    body = `<div class="ed-grid"><div class="span3"><label for="p-file">Link to the PDF</label><input id="p-file" type="url" value="${esc(v.file_url ?? '')}"></div>
       ${action === 'edit' ? `<div class="span3"><label for="p-change">What changes in this version</label><input id="p-change" value="${esc(v.change_note ?? '')}"></div>` : ''}</div>
-      ${action === 'submit' ? '<p class="hint">An administrator reviews and approves the version.</p>' : ''}`;
+      ${action === 'submit' ? '<p class="hint">An administrator reviews this PDF. Once approved, the version and its PDF cannot be changed: changes go in the next version.</p>' : ''}`;
   } else if (action === 'return') {
     body = `<label for="p-note">What has to be changed</label><textarea id="p-note" rows="3"></textarea>`;
   } else if (action === 'send') {

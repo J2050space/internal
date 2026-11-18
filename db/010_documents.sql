@@ -12,7 +12,11 @@
 --       in_progress -> in_review -> approved -> sent -> esa_accepted
 --                      (returned by an admin)        \-> esa_changes
 --     The responsible changes the status; only admins approve. Admins can
---     do everything. "Old version" is derived (a newer version exists).
+--     do everything, but an approved version is frozen (its PDF stays as
+--     approved; only ESA link and comments are added): changes go in the
+--     next version, or an admin resets it. "Old version" is derived.
+--     The document links the SharePoint folder and the working file
+--     (one for all versions); each version links its PDF.
 --   * document_requirements: document x milestone, required level (draft,
 --     release, update, ad hoc), optional Gantt task producing it, version
 --     that fulfils it (set when the version is sent to ESA).
@@ -113,7 +117,8 @@ create table public.documents (
   priority        text check (priority in ('low', 'medium', 'high')),
   on_hold         boolean not null default false,
   on_hold_reason  text,
-  folder_url      text,
+  folder_url      text,                 -- SharePoint folder of the document
+  working_url     text,                 -- file being edited (Word, Excel...), one for all versions
   note            text,
   created_by      uuid references public.profiles(id) on delete set null default auth.uid(),
   created_at      timestamptz not null default now(),
@@ -129,7 +134,7 @@ create table public.document_versions (
   version       smallint not null check (version between 0 and 99),
   status        text not null default 'in_progress'
                 check (status in ('in_progress', 'in_review', 'approved', 'sent', 'esa_accepted', 'esa_changes')),
-  file_url      text,
+  file_url      text,                   -- PDF of the version, frozen after the approval
   change_note   text,                   -- what changes in this version
   review_note   text,                   -- note of the admin when the version is returned
   submitted_at  timestamptz,
@@ -332,7 +337,7 @@ $$;
 
 -- Save a document (new or existing).
 --   p_fields: subteam, doc_type, title, name, esa_code, subteams, responsible_id,
---             people, priority, on_hold, on_hold_reason, folder_url, note
+--             people, priority, on_hold, on_hold_reason, folder_url, working_url, note
 --   New documents: admins and teamleaders; a teamleader becomes the
 --   responsible. Existing documents: admins and the responsible; only
 --   admins change the responsible.
@@ -355,12 +360,13 @@ begin
     if not v_admin and v_role <> 'teamleader' then raise exception 'Not authorized'; end if;
     if not v_admin then v_resp := auth.uid(); end if;
     insert into documents (subteam, doc_type, title, name, esa_code, subteams, responsible_id, people,
-                           priority, on_hold, on_hold_reason, folder_url, note)
+                           priority, on_hold, on_hold_reason, folder_url, working_url, note)
     values (p_fields ->> 'subteam', p_fields ->> 'doc_type', trim(p_fields ->> 'title'),
             trim(p_fields ->> 'name'), nullif(trim(p_fields ->> 'esa_code'), ''), v_subteams, v_resp,
             nullif(trim(p_fields ->> 'people'), ''), nullif(p_fields ->> 'priority', ''),
             v_hold, case when v_hold then nullif(trim(p_fields ->> 'on_hold_reason'), '') end,
-            nullif(trim(p_fields ->> 'folder_url'), ''), nullif(trim(p_fields ->> 'note'), ''))
+            nullif(trim(p_fields ->> 'folder_url'), ''), nullif(trim(p_fields ->> 'working_url'), ''),
+            nullif(trim(p_fields ->> 'note'), ''))
     returning id into v_id;
     return v_id;
   end if;
@@ -385,6 +391,7 @@ begin
     on_hold        = v_hold,
     on_hold_reason = case when v_hold then nullif(trim(p_fields ->> 'on_hold_reason'), '') end,
     folder_url     = nullif(trim(p_fields ->> 'folder_url'), ''),
+    working_url    = nullif(trim(p_fields ->> 'working_url'), ''),
     note           = nullif(trim(p_fields ->> 'note'), '')
   where id = v_id;
   return v_id;
@@ -428,7 +435,9 @@ begin
 end $$;
 
 -- Actions on a version.
---   edit        file_url, change_note (in progress); esa_url, esa_comments (after sending)
+--   edit        file_url (PDF), change_note (in progress, in review);
+--               esa_url, esa_comments (after sending). An approved version is
+--               frozen, also for admins: changes go in the next version.
 --   submit      in_progress -> in_review                 responsible, admin
 --   withdraw    in_review   -> in_progress               responsible, admin
 --   approve     in_review   -> approved                  admin
@@ -438,7 +447,7 @@ end $$;
 --   esa_accept  sent, esa_changes -> esa_accepted
 --   esa_changes sent, esa_accepted -> esa_changes; esa_comments
 --   reset       any -> in_progress (admin; requirements lose this version)
---   delete      version in progress (responsible) or any (admin)
+--   delete      last version, in progress (an admin resets it first if needed)
 create function public.doc_version_action(p_version_id bigint, p_action text, p_fields jsonb default '{}')
 returns void
 language plpgsql security definer set search_path = public as $$
@@ -455,7 +464,7 @@ begin
 
   case p_action
   when 'edit' then
-    if v.status in ('in_progress', 'in_review') or v_admin then
+    if v.status in ('in_progress', 'in_review') then
       update document_versions set
         file_url    = coalesce(nullif(trim(p_fields ->> 'file_url'), ''), case when p_fields ? 'file_url' then null else file_url end),
         change_note = case when p_fields ? 'change_note' then nullif(trim(p_fields ->> 'change_note'), '') else change_note end
@@ -466,7 +475,7 @@ begin
         esa_url      = case when p_fields ? 'esa_url' then nullif(trim(p_fields ->> 'esa_url'), '') else esa_url end,
         esa_comments = case when p_fields ? 'esa_comments' then nullif(trim(p_fields ->> 'esa_comments'), '') else esa_comments end
       where id = v.id;
-    elsif not (v.status in ('in_progress', 'in_review') or v_admin) then
+    elsif v.status = 'approved' then
       raise exception 'Released version cannot be changed';
     end if;
 
@@ -532,7 +541,7 @@ begin
     where id = v.id;
 
   when 'delete' then
-    if not v_admin and v.status <> 'in_progress' then raise exception 'Only versions in progress can be deleted'; end if;
+    if v.status <> 'in_progress' then raise exception 'Only versions in progress can be deleted'; end if;
     if exists (select 1 from document_versions where document_id = v.document_id and version > v.version) then
       raise exception 'Only the last version can be deleted';
     end if;
