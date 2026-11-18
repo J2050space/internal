@@ -1,16 +1,21 @@
 -- =====================================================================
 -- J2050 internal tools - migration 011
 -- Scope: initial data of the document module.
---   * 5 milestones of the FYS documentation timeline (dates set later by
---     the admins from the site).
---   * Documents required by ESA, named according to the J2050
---     Documentation Manual ([SUBTEAM]_[TYPE]_[Title]); no versions yet,
---     no responsible (assigned from the site).
---   * Required level of each document at each milestone, with a short
---     note on the expected content.
--- Source: FYS documentation timeline prepared with Gemini from
--- ESA-DG-SET-2020-1731, ESA-TEC-PET-2021-1822, ESA-TEC-PET-2021-1823.
+--   * Milestones = ESA deadline keys with deliverables (D1.10 ... D2.80,
+--     E1, E2); dates set later by the admins from the site.
+--   * Documents named according to the J2050 Documentation Manual
+--     ([SUBTEAM]_[TYPE]_[Title]); no versions, no responsible.
+--   * Required level of each document at each milestone.
+-- Sources: milestone and deliverables summaries of the FYS4 training week
+-- (Phase D1 and D2) and FYS4 Phase D DRDs and Guidelines v1.0; documents
+-- of the former SharePoint document tracker (titles only, no status).
+-- RedPill is treated as a PocketQube (FYS Design Specification for
+-- PocketQubes): the EQSL is listed but not required at a milestone.
+-- Requirements marked "assumption" in their note are not in the ESA
+-- lists. Documents without requirement are assigned from the site.
 -- NCR, RFD and RFW are created when needed: no fixed document.
+-- Rewritten on 2026-11-18: databases seeded with the first version of
+-- this file are updated by migration 012.
 -- Prerequisite: migration 010 applied.
 -- Run once in Supabase > SQL Editor. Runs as one transaction.
 -- =====================================================================
@@ -20,66 +25,108 @@ begin;
 -- 1. Milestones
 -- ---------------------------------------------------------------------
 insert into public.milestones (code, name, phase, sort_order, note) values
-  ('PDR',     'Preliminary Design Review and Requirements Review', 'B/C',   10,
-   'Requirements consolidated (TS-VCD), preliminary architecture, first drafts.'),
-  ('CDR',     'Critical Design Review',                            'C',     20,
-   'Design freeze: release of all core documents. RFD submitted if needed.'),
-  ('TRR-TRB', 'Test Readiness Review and Test Review Board',       'D1',    30,
-   'Assembly, integration and functional tests: procedures before the TRR, reports for the TRB. NCR opened for every anomaly.'),
-  ('AR',      'Environmental Tests and Acceptance Review',         'D2',    40,
-   'Vibration and TVAC campaign, as-built configuration. All NCR closed or covered by an approved RFW before the review.'),
-  ('FRR',     'Flight Readiness Review, Launch and Operations',    'E1/E2', 50,
-   'Launch safety package, final authorisations, launch campaign, operations and post-mission reports.');
+  ('KOR',      'Kick Off Review (D1.10)', 'D1', 10,
+   'Soundness of the design and consolidated AIV plan. Satellite Project File before the review, then team presentation.'),
+  ('IFV',      'Interfaces Verification (D1.20)', 'D1', 20,
+   'University cleanroom, once the flight model is integrated: FDS interface requirements (mass, dimensions, layout), basic functions, deployer fit check if possible.'),
+  ('FTC-KO',   'Functional Test Campaign Kick Off (D1.30)', 'D1', 30,
+   'Online with ESA at least 2 weeks before the campaign: integration results, open RIDs, actions, NCRs and RFWs, test documents complete, configuration control, facilities and GSE.'),
+  ('FFT-PRT',  'Full Functional Test, Post Test Review (D1.45)', 'D1', 40,
+   'FFT Test Readiness Review (D1.40) at the university before the test.'),
+  ('MT-TRR',   'Mission Test, Test Readiness Review (D1.50)', 'D1', 50,
+   null),
+  ('MT-PRT',   'Mission Test, Post Test Review (D1.55)', 'D1', 60,
+   null),
+  ('D1-CO',    'Phase D1 Close-out, Ticket to Test (D1.60 data package, D1.70 review)', 'D1', 70,
+   'Satellite integrated and tested in laboratory conditions, NCRs processed, TS-VCD and FDS-VCD up to date, RFDs and RFWs processed, KOR and FTC items closed. NCR, RFD and RFW are delivered with the data package.'),
+  ('ETC-KO',   'Environmental Test Campaign Kick Off (D2.10)', 'D2', 80,
+   'Online with ESA: functional test results, open RIDs, NCRs and RFWs, final analyses, test levels and schedule, GSE, satellite ready for shipment. Consent to ship follows.'),
+  ('VT-TRR',   'Vibration Test, Test Readiness Review (D2.20)', 'D2', 90,
+   'At the ESA test facility. Post Test Review: D2.25.'),
+  ('TVAC-TRR', 'Thermal Vacuum Test, Test Readiness Review (D2.30)', 'D2', 100,
+   'At the ESA test facility. Post Test Review: D2.35.'),
+  ('FAR',      'Flight Acceptance Review, Ticket to Orbit (D2.40 data package, D2.80 board)', 'D2', 110,
+   'ESA review of the data package, RIDs and colocations (D2.50-D2.70), then FAR Board. NCRs closed or with a closure plan, RFDs and RFWs approved; NCR, RFD and RFW delivered with the data package.'),
+  ('LAUNCH',   'Launch Campaign (Phase E1)', 'E1', 120,
+   null),
+  ('PFR',      'Post Flight Review (Phase E2)', 'E2', 130,
+   null);
 
 -- ---------------------------------------------------------------------
 -- 2. Documents
 -- ---------------------------------------------------------------------
-insert into public.documents (subteam, doc_type, title, name, esa_code, note) values
-  -- System engineering
-  ('SYS', 'DREP', 'MissionDescriptionOperations',      'Mission Description and Operations Plan',                       'MDO',       null),
-  ('SYS', 'DREP', 'DesignDefinitionJustification',     'Design Definition and Justification File',                      'DDJF',      null),
-  ('SYS', 'VCD',  'TechnicalSpecification',            'Technical Specification and Verification Control Document',     'TS-VCD',    null),
-  ('SYS', 'VCD',  'FYSDesignSpecification',            'FYS Design Specification Verification Control Document',        'FDS-VCD',   null),
-  ('SYS', 'MAN',  'SatelliteOperations',               'Operations Manual (flight and ground)',                          'OPS-MAN',   null),
-  ('SYS', 'MAN',  'GroundHandling',                    'Ground Handling User Manual',                                    'GHUM',      null),
-  ('SYS', 'AREP', 'LaunchSafetyDataPackage',           'Launcher and Launch Site Safety Data Package',                   'SAFETY-DP', null),
-  ('SYS', 'AREP', 'MissionOperationsResults',          'Mission and Operations Report',                                  'M-RPT',     null),
-  -- Verification and testing
-  ('SYS', 'PLAN', 'AssemblyIntegrationVerification',   'Manufacturing, Assembly, Integration and Verification Plan',     'MAIVP',     null),
-  ('SYS', 'VCD',  'EquipmentQualificationStatus',      'Equipment Qualification Status List',                            'EQSL',      null),
-  ('RED', 'PROC', 'SatelliteIntegration',              'Assembly and Integration Procedure',                             'AI-PRO',    null),
-  ('SYS', 'TREP', 'InterfacesVerification',            'Interfaces Verification Report',                                 'IFV-RPT',   'As-run FYS3 Interfaces Verification Procedure.'),
-  ('SYS', 'TREP', 'SatelliteInspection',               'CubeSat Inspection Report',                                      'CUB-IRPT',  'As-run FYS3 Inspection Procedure.'),
-  ('SYS', 'TSTP', 'FullFunctionalTest',                'Full Functional Test Specification and Procedures',              'FFT-TSTP',  null),
-  ('SYS', 'TREP', 'FullFunctionalTest',                'Full Functional Test Report',                                    'FFT-TRPT',  null),
-  ('SYS', 'TSTP', 'ReducedFunctionalTest',             'Reduced Functional Test Specification and Procedures',           'RFT-TSTP',  null),
-  ('SYS', 'TREP', 'ReducedFunctionalTest',             'Reduced Functional Test Report',                                 'RFT-TRPT',  null),
-  ('SYS', 'TSTP', 'MissionTest',                       'Mission Test Specification and Procedures',                      'MIS-TSTP',  null),
-  ('SYS', 'TREP', 'MissionTest',                       'Mission Test Report',                                            'MIS-TRPT',  null),
-  ('SYS', 'TSTP', 'VibrationTest',                     'Vibration Test Specification and Procedures',                    'VIBE-TSTP', null),
-  ('SYS', 'TREP', 'VibrationTest',                     'Vibration Test Report',                                          'VIBE-TRPT', null),
-  ('SYS', 'TSTP', 'ThermalVacuumTest',                 'Thermal Vacuum Test Specification and Procedures',               'TVAC-TSTP', null),
-  ('SYS', 'TREP', 'ThermalVacuumTest',                 'Thermal Vacuum Test Report',                                     'TVAC-TRPT', null),
-  ('SYS', 'TREP', 'OperationsValidation',              'Operations Validation Report',                                   'OPS-VAL',   null),
-  ('TTC', 'TREP', 'GroundStationTest',                 'Ground Station Test Report',                                     'GS-TRPT',   null),
-  ('THS', 'AREP', 'StructuralAnalysis',                'Structural Analysis Report',                                     'ARPT',      null),
-  ('THS', 'AREP', 'ThermalAnalysis',                   'Thermal Analysis Report',                                        'ARPT',      null),
-  ('SYS', 'AREP', 'OrbitAnalysis',                     'Orbit Analysis Report',                                          'ARPT',      null),
-  ('SYS', 'AREP', 'RadiationAnalysis',                 'Radiation Analysis Report',                                      'ARPT',      null),
-  -- Product assurance
-  ('SYS', 'AREP', 'FailureModesEffects',               'Failure Modes and Effects Analysis',                             'FMEA',      null),
-  ('SYS', 'DREP', 'FaultDetectionIsolationRecovery',   'FDIR Concept Report',                                            'FDIR',      null),
-  ('SYS', 'DREP', 'DeclaredMaterials',                 'Declared Materials List',                                        'DML',       'ESA template [AD10].'),
-  ('SYS', 'DREP', 'ProductTree',                       'CubeSat Product Tree',                                           'CPT',       'ESA template [AD9].'),
-  ('ELE', 'TREP', 'BatteryPackSafety',                 'Battery Report',                                                 'BAT-RPT',   'Required for ISS deployment or if requested by the launch provider.'),
-  ('RED', 'LOG',  'SatelliteLogbook',                  'CubeSat Logbook',                                                'LOGBOOK',   'ESA template [RD4].'),
-  -- Software
-  ('SFW', 'MAN',  'SoftwareRepository',                'Software Repository and Documentation (flight, payload, ground station, EGSE)', 'SW-REPO', null),
-  -- Regulatory and project management
-  ('SYS', 'AREP', 'SpaceDebrisMitigation',             'Space Debris Mitigation Report',                                 'SDMR',      'Compliance matrix: Annex H of ESSB-HB-U-002.'),
-  ('MGT', 'PLAN', 'RegistrationAuthorisation',         'Registration and Authorisation Status Report',                   'REG_AUT',   null),
-  ('MGT', 'PLAN', 'ProjectManagement',                 'Project Management Plan',                                        'PMP',       null),
-  ('RED', 'MAN',  'LessonsLearned',                    'Lessons Learned Report',                                         'LL-RPT',    null);
+insert into public.documents (subteam, doc_type, title, name, esa_code, subteams, note) values
+  -- Kick Off Review
+  ('SYS', 'DREP', 'SatelliteProjectFile',         'Satellite Project File',                                   'SPF',       '{}', 'Derived from the Satellite Proposal.'),
+  ('SYS', 'AREP', 'FailureModesEffects',          'Failure Modes, Effects and Criticality Analysis, FDIR',    'FMECA',     '{}', 'Basis of the FDIR verification in the functional and mission tests.'),
+  ('SYS', 'AREP', 'MissionAnalysis',              'Mission Analysis Report',                                  null,        '{}', null),
+  -- Assembly, integration, interfaces verification
+  ('RED', 'PROC', 'QMIntegration',                'QM Assembly and Integration Procedure',                    null,        '{}', null),
+  ('RED', 'PROC', 'SatelliteIntegration',         'FM Assembly and Integration Procedure',                    'AI-PRO',    '{}', 'System level. The as-run version closes the integration.'),
+  ('RED', 'LOG',  'SatelliteLogbook',             'Satellite Logbook',                                        'LOG',       '{}', 'Activities, travel, battery cycles, antenna deployments, connector matings. Travels with the satellite.'),
+  ('SYS', 'TREP', 'InterfacesVerification',       'Interfaces Verification Report',                           'IFV-RPT',   '{}', 'As-run ESA Interfaces Verification Procedure for PocketQubes.'),
+  ('SYS', 'TREP', 'SatelliteInspection',          'Satellite Inspection Report',                              'SAT-IRPT',  '{}', 'As-run ESA Inspection Procedure for PocketQubes, repeated before and after shipment and tests.'),
+  ('SYS', 'VCD',  'EquipmentQualificationStatus', 'Equipment Qualification Status List',                      'EQSL',      '{}', 'In the ESA D1.60 data package for CubeSats only.'),
+  -- Subsystem tests
+  ('TTC', 'TPLN', 'AntennaTest',                  'Antenna Test Plan',                                        null,        '{SYS}', null),
+  ('TTC', 'TSTP', 'AntennaTest',                  'Antenna Test Specification and Procedure',                 null,        '{SYS}', null),
+  ('TTC', 'TREP', 'AntennaTest',                  'Antenna Test Report',                                      null,        '{SYS}', null),
+  ('TTC', 'TREP', 'LongRange2',                   'Second Long Range Test Report',                            null,        '{}', null),
+  ('ELE', 'TPLN', 'BatteryPack',                  'Battery Pack Test Plan',                                   null,        '{SYS}', null),
+  ('ELE', 'TSTP', 'BatteryPackAcceptance',        'Battery Pack Acceptance Test Specification and Procedure', null,        '{SYS}', null),
+  ('ELE', 'TREP', 'BatteryPackAcceptance',        'Battery Pack Acceptance Test Report',                      null,        '{SYS}', null),
+  -- Design and analysis of the subsystems
+  ('TTC', 'DREP', 'AntennaMechanism',             'Antenna Deployment Mechanism Design Report',               null,        '{}', null),
+  ('TTC', 'DREP', 'COMMSArchitecture',            'COMMS Architecture',                                       null,        '{}', null),
+  ('TTC', 'AREP', 'LinkDataBudget',               'Link and Data Budget Analysis Report',                     null,        '{}', null),
+  -- Functional test campaign
+  ('SYS', 'TSTP', 'FullFunctionalTest',           'Full Functional Test Specification and Procedure',         'FFT-TSTP',  '{}', null),
+  ('SYS', 'TSTP', 'MissionTest',                  'Mission Test Specification and Procedure',                 'MIS-TSTP',  '{}', 'May include the end-to-end test.'),
+  ('SYS', 'TREP', 'FullFunctionalTest',           'Full Functional Test Report',                              'FFT-TRPT',  '{}', null),
+  ('SYS', 'TREP', 'MissionTest',                  'Mission Test Report',                                      'MIS-TRPT',  '{}', null),
+  -- Reduced functional test
+  ('SYS', 'TSTP', 'QMReducedFunctionalTest',      'QM Reduced Functional Test Specification and Procedure',   null,        '{}', null),
+  ('SYS', 'TREP', 'QMReducedFunctionalTest',      'QM Reduced Functional Test Report',                        null,        '{}', null),
+  ('SYS', 'TSTP', 'ReducedFunctionalTest',        'FM Reduced Functional Test Specification and Procedure',   'RFT-TSTP',  '{}', 'Run before and after each environmental test and each transport.'),
+  ('SYS', 'TREP', 'ReducedFunctionalTest',        'FM Reduced Functional Test Report',                        'RFT-TRPT',  '{}', null),
+  -- Operations and ground segment
+  ('SYS', 'MAN',  'SatelliteOperations',          'Operations Manual',                                        'OPS-MAN',   '{}', null),
+  ('SYS', 'TREP', 'OperationsValidation',         'Operational Procedures Validation',                        'OPS-VAL',   '{}', 'Procedures, TM and TC validated, with set-up and software versions.'),
+  ('TTC', 'TREP', 'GroundStationTest',            'Ground Station Test Report',                               'GS-TRPT',   '{SYS}', 'Recommended tests in Annex 1 of the Phase D DRDs.'),
+  -- Requirements compliance, legal and regulatory
+  ('SYS', 'VCD',  'TechnicalSpecification',       'Technical Specification Verification Control Document',    'TS-VCD',    '{}', 'Kept in the VCD tool of the FYS portal.'),
+  ('SYS', 'VCD',  'FYSDesignSpecification',       'FYS Design Specification Verification Control Document',   'FDS-VCD',   '{}', 'Kept in the VCD tool of the FYS portal.'),
+  ('MGT', 'PLAN', 'RegistrationAuthorisation',    'Registration and Authorisation Status Report',             'REG-AUT',   '{}', null),
+  ('SYS', 'AREP', 'SpaceDebrisMitigation',        'Space Debris Mitigation Report',                           'SDMR',      '{}', null),
+  -- Environmental tests: qualification model
+  ('SYS', 'TPLN', 'QMVibrationTest',              'QM Vibration Test Plan',                                   null,        '{}', null),
+  ('SYS', 'TSTP', 'QMVibrationTest',              'QM Vibration Test Specification and Procedure',            null,        '{}', null),
+  ('SYS', 'TREP', 'QMVibrationTest',              'QM Vibration Test Report',                                 null,        '{}', null),
+  ('SYS', 'TPLN', 'QMThermalVacuumTest',          'QM Thermal Vacuum Test Plan',                              null,        '{}', null),
+  ('SYS', 'TSTP', 'QMThermalVacuumTest',          'QM Thermal Vacuum Test Specification and Procedure',       null,        '{}', null),
+  ('SYS', 'TREP', 'QMThermalVacuumTest',          'QM Thermal Vacuum Test Report',                            null,        '{}', null),
+  -- Environmental test campaign: flight model
+  ('SYS', 'TPLN', 'VibrationTest',                'FM Vibration Test Plan',                                   null,        '{}', null),
+  ('SYS', 'TSTP', 'VibrationTest',                'FM Vibration Test Specification and Procedure',            'VIBE-TSTP', '{}', 'DRD in the FYS4 Environmental Testing DRDs and Guidelines.'),
+  ('SYS', 'TREP', 'VibrationTest',                'FM Vibration Test Report',                                 'VT-TRPT',   '{}', null),
+  ('SYS', 'TPLN', 'ThermalVacuumTest',            'FM Thermal Vacuum Test Plan',                              null,        '{}', null),
+  ('SYS', 'TSTP', 'ThermalVacuumTest',            'FM Thermal Vacuum Test Specification and Procedure',       'TVAC-TSTP', '{}', 'DRD in the FYS4 Environmental Testing DRDs and Guidelines.'),
+  ('SYS', 'TREP', 'ThermalVacuumTest',            'FM Thermal Vacuum Test Report',                            'TVAC-TRPT', '{}', null),
+  ('SYS', 'DREP', 'DeclaredMaterials',            'Declared Materials List',                                  'DML',       '{THS}', 'ESA template on the FYS portal.'),
+  ('THS', 'AREP', 'StructuralAnalysis',           'Structural Analysis Report',                               'STR-ARPT',  '{}', null),
+  ('THS', 'AREP', 'ThermalAnalysis',              'Thermal Analysis Report',                                  'THR-ARPT',  '{}', null),
+  ('SYS', 'PLAN', 'SatelliteShipment',            'Shipment Plan',                                            null,        '{}', 'Transport to the ESA test facility: packaging, customs.'),
+  ('SYS', 'MAN',  'GroundHandling',               'Ground Handling User Manual',                              'GHUM',      '{}', 'Travels with the satellite: shipment, tests, deployer integration.'),
+  ('SYS', 'TREP', 'MDVReport',                    'MDV Report',                                               'MDV-RPT',   '{}', 'Listed in the FAR data package: confirm with ESA what MDV stands for, then rename.'),
+  ('ELE', 'TREP', 'BatteryPackSafety',            'Battery Report',                                           'BAT-RPT',   '{}', 'Space debris and launch safety compliance of the batteries; includes the battery log.'),
+  -- Configuration control
+  ('SYS', 'DREP', 'ProductTree',                  'Spacecraft Product Tree',                                  'SPT',       '{}', 'ESA template on the FYS portal.'),
+  ('SFW', 'MAN',  'SoftwareRepository',           'Software Repository',                                      null,        '{}', 'Configuration control of the on-board and ground software.'),
+  -- Launch campaign and operations
+  ('SYS', 'AREP', 'LaunchSafetyDataPackage',      'Launch and Safety Data Package',                           null,        '{}', null),
+  ('SYS', 'PROC', 'PreflightCheckout',            'Pre-flight Check-out Procedure',                           null,        '{}', null),
+  ('SYS', 'DREP', 'InterfaceControl',             'Interface Control Document',                               'ICD',       '{}', null),
+  ('RED', 'AREP', 'MissionResultsLessonsLearned', 'Post Flight Report: Mission Results and Lessons Learned',  null,        '{}', null);
 
 -- ---------------------------------------------------------------------
 -- 3. Required level at each milestone
@@ -87,111 +134,65 @@ insert into public.documents (subteam, doc_type, title, name, esa_code, note) va
 create temp table seed_requirements (file text, milestone text, level text, note text) on commit drop;
 
 insert into seed_requirements values
-  ('SYS_DREP_MissionDescriptionOperations', 'PDR',     'draft',   'Mission objectives, preliminary ConOps, orbit requirements.'),
-  ('SYS_DREP_MissionDescriptionOperations', 'CDR',     'release', 'Operational modes, activation sequence (LEOP), nominal pass timeline, critical periods.'),
-  ('SYS_DREP_MissionDescriptionOperations', 'TRR-TRB', 'update',  'Updated with functional and mission test results (boot times, TM/TC).'),
+  ('SYS_DREP_SatelliteProjectFile',         'KOR',      'release', null),
+  ('SYS_AREP_FailureModesEffects',          'KOR',      'release', 'FME(C)A deliverable at the KOR.'),
 
-  ('SYS_DREP_DesignDefinitionJustification', 'PDR',    'draft',   'Preliminary architecture, main component selection, first budgets with margins.'),
-  ('SYS_DREP_DesignDefinitionJustification', 'CDR',    'release', 'Design freeze: quick facts table, CAD and ICD, all budgets (mass, power, link, data, pointing, radiation).'),
+  ('RED_PROC_SatelliteIntegration',         'IFV',      'release', 'As-run procedure with photos and videos of the integration.'),
+  ('RED_LOG_SatelliteLogbook',              'IFV',      'ad_hoc',  'Started at the first assembly, kept up to date.'),
 
-  ('SYS_VCD_TechnicalSpecification', 'PDR',     'release', 'Technical specification baseline: numbered, verifiable, traced requirements.'),
-  ('SYS_VCD_TechnicalSpecification', 'CDR',     'update',  'Verification method, level and phase; requirements closed by review of design and analysis.'),
-  ('SYS_VCD_TechnicalSpecification', 'TRR-TRB', 'update',  'Compliance status with test and inspection reports.'),
-  ('SYS_VCD_TechnicalSpecification', 'AR',      'update',  'Environmental requirements closed with vibration and TVAC reports.'),
-  ('SYS_VCD_TechnicalSpecification', 'FRR',     'update',  'All requirements closed before launch; deviations covered by approved RFD or RFW.'),
+  ('SYS_TREP_InterfacesVerification',       'FTC-KO',   'release', null),
+  ('SYS_TREP_SatelliteInspection',          'FTC-KO',   'release', 'With the interfaces verification, at the end of the integration.'),
+  ('SYS_TSTP_FullFunctionalTest',           'FTC-KO',   'release', null),
+  ('SYS_TSTP_MissionTest',                  'FTC-KO',   'release', null),
 
-  ('SYS_VCD_FYSDesignSpecification', 'CDR',     'release', 'Design compliance with all FDS requirements (analyses, calculations, datasheets).'),
-  ('SYS_VCD_FYSDesignSpecification', 'TRR-TRB', 'update',  'Evidence from inspections and functional tests.'),
-  ('SYS_VCD_FYSDesignSpecification', 'AR',      'update',  'Evidence from environmental tests, mass properties and fit check.'),
-  ('SYS_VCD_FYSDesignSpecification', 'FRR',     'update',  'Final update before the launch campaign.'),
+  ('SYS_TSTP_FullFunctionalTest',           'FFT-PRT',  'update',  'As-run procedure.'),
+  ('SYS_MAN_SatelliteOperations',           'MT-TRR',   'release', null),
+  ('SYS_TSTP_MissionTest',                  'MT-PRT',   'update',  'As-run procedure.'),
 
-  ('SYS_MAN_SatelliteOperations', 'TRR-TRB', 'draft',   'Nominal and contingency procedures, to be validated in the mission test.'),
-  ('SYS_MAN_SatelliteOperations', 'AR',      'release', 'Validated by the mission test and the system validation tests.'),
+  ('SYS_TREP_FullFunctionalTest',           'D1-CO',    'draft',   null),
+  ('SYS_TREP_MissionTest',                  'D1-CO',    'draft',   null),
+  ('SYS_VCD_TechnicalSpecification',        'D1-CO',    'update',  'Phase D1 status.'),
+  ('SYS_VCD_FYSDesignSpecification',        'D1-CO',    'update',  'Phase D1 status.'),
+  ('SYS_MAN_SatelliteOperations',           'D1-CO',    'update',  null),
+  ('SYS_TREP_OperationsValidation',         'D1-CO',    'release', null),
+  ('MGT_PLAN_RegistrationAuthorisation',    'D1-CO',    'update',  null),
 
-  ('SYS_MAN_GroundHandling', 'TRR-TRB', 'draft',   'Handling points, ESD precautions, RBF pins and inhibits, transport.'),
-  ('SYS_MAN_GroundHandling', 'AR',      'release', 'Handling for environmental tests and deployer integration.'),
-  ('SYS_MAN_GroundHandling', 'FRR',     'update',  'Adapted to the launch provider and the integration site.'),
+  ('SYS_TSTP_VibrationTest',                'ETC-KO',   'draft',   null),
+  ('SYS_TSTP_ThermalVacuumTest',            'ETC-KO',   'draft',   null),
+  ('SYS_DREP_DeclaredMaterials',            'ETC-KO',   'update',  null),
+  ('THS_AREP_StructuralAnalysis',           'ETC-KO',   'update',  null),
+  ('THS_AREP_ThermalAnalysis',              'ETC-KO',   'update',  null),
+  ('SYS_PLAN_SatelliteShipment',            'ETC-KO',   'release', 'Part of the environmental test data package.'),
+  ('SYS_TSTP_ReducedFunctionalTest',        'ETC-KO',   'release', 'Assumption: not in the ESA list, needed before shipment and tests.'),
+  ('SYS_MAN_GroundHandling',                'ETC-KO',   'release', 'Assumption: not in the ESA list, needed before shipment.'),
 
-  ('SYS_AREP_LaunchSafetyDataPackage', 'AR',  'draft',   'Hazard analysis, battery certificates, materials, inhibit schemes.'),
-  ('SYS_AREP_LaunchSafetyDataPackage', 'FRR', 'release', 'Signed package with the final acceptance test results.'),
+  ('SYS_TSTP_VibrationTest',                'VT-TRR',   'release', 'Assumption: final version before the test.'),
+  ('SYS_TSTP_ThermalVacuumTest',            'TVAC-TRR', 'release', 'Assumption: final version before the test.'),
 
-  ('SYS_AREP_MissionOperationsResults', 'FRR', 'release', 'LEOP, commissioning and nominal phase; orbital telemetry against predictions.'),
+  ('SYS_TREP_FullFunctionalTest',           'FAR',      'release', null),
+  ('SYS_TREP_MissionTest',                  'FAR',      'release', null),
+  ('SYS_TREP_VibrationTest',                'FAR',      'release', null),
+  ('SYS_TREP_ThermalVacuumTest',            'FAR',      'release', null),
+  ('SYS_TREP_MDVReport',                    'FAR',      'release', null),
+  ('SYS_VCD_TechnicalSpecification',        'FAR',      'update',  'Phase D2 status: requirements closed.'),
+  ('SYS_VCD_FYSDesignSpecification',        'FAR',      'update',  'Phase D2 status: requirements closed.'),
+  ('SYS_MAN_SatelliteOperations',           'FAR',      'update',  null),
+  ('TTC_TREP_GroundStationTest',            'FAR',      'release', 'At the latest for the FAR.'),
+  ('ELE_TREP_BatteryPackSafety',            'FAR',      'release', 'TBC by ESA.'),
+  ('SYS_AREP_SpaceDebrisMitigation',        'FAR',      'update',  null),
+  ('MGT_PLAN_RegistrationAuthorisation',    'FAR',      'update',  null),
+  ('SYS_AREP_LaunchSafetyDataPackage',      'FAR',      'draft',   'TBC by ESA, depends on the launch.'),
+  ('SYS_TREP_SatelliteInspection',          'FAR',      'ad_hoc',  'Inspections before and after shipment and tests.'),
+  ('SYS_TREP_ReducedFunctionalTest',        'FAR',      'ad_hoc',  'After each RFT; may be part of the vibration and TVAC reports.'),
+  ('SYS_DREP_ProductTree',                  'FAR',      'ad_hoc',  'As-built configuration.'),
+  ('SFW_MAN_SoftwareRepository',            'FAR',      'ad_hoc',  'Flight software baseline.'),
 
-  ('SYS_PLAN_AssemblyIntegrationVerification', 'PDR', 'draft',   'Model philosophy and verification strategy.'),
-  ('SYS_PLAN_AssemblyIntegrationVerification', 'CDR', 'release', 'Models per subsystem, AIV flow, GSE, cleanroom requirements, test plan.'),
+  ('SYS_AREP_LaunchSafetyDataPackage',      'LAUNCH',   'release', null),
+  ('SYS_PROC_PreflightCheckout',            'LAUNCH',   'release', null),
+  ('SYS_DREP_InterfaceControl',             'LAUNCH',   'release', null),
+  ('SYS_MAN_GroundHandling',                'LAUNCH',   'update',  'Assumption: deployer integration, pre-flight tests and maintenance.'),
 
-  ('SYS_VCD_EquipmentQualificationStatus', 'TRR-TRB', 'release', 'Qualification status of each equipment (example table in the Phase D DRDs).'),
-  ('SYS_VCD_EquipmentQualificationStatus', 'AR',      'update',  'Status after the environmental tests.'),
-
-  ('RED_PROC_SatelliteIntegration', 'TRR-TRB', 'release', 'Step-by-step assembly: torques, harness, continuity and insulation checks.'),
-  ('SYS_TREP_InterfacesVerification', 'TRR-TRB', 'release', 'Interfaces verified during integration.'),
-
-  ('SYS_TREP_SatelliteInspection', 'TRR-TRB', 'release', 'Dimensions, mass, centre of mass, moments of inertia.'),
-  ('SYS_TREP_SatelliteInspection', 'AR',      'update',  'Final as-built inspection: final mass, deployer fit check, photos.'),
-
-  ('SYS_TSTP_FullFunctionalTest', 'TRR-TRB', 'release', 'Agreed with ESA before the TRR.'),
-  ('SYS_TREP_FullFunctionalTest', 'TRR-TRB', 'release', 'Results with complete logs, for the TRB.'),
-  ('SYS_TREP_FullFunctionalTest', 'AR',      'update',  'Full functional test after the environmental tests: no degradation.'),
-  ('SYS_TSTP_ReducedFunctionalTest', 'TRR-TRB', 'release', 'Agreed with ESA before the TRR.'),
-  ('SYS_TREP_ReducedFunctionalTest', 'AR',      'release', 'Reduced functional tests before and after each environmental test.'),
-  ('SYS_TSTP_MissionTest', 'TRR-TRB', 'release', 'Agreed with ESA before the TRR.'),
-  ('SYS_TREP_MissionTest', 'TRR-TRB', 'release', 'Results for the TRB.'),
-
-  ('SYS_TSTP_VibrationTest',     'TRR-TRB', 'draft',   'Draft for the environmental TRR.'),
-  ('SYS_TSTP_VibrationTest',     'AR',      'release', 'Agreed with ESA before the test.'),
-  ('SYS_TREP_VibrationTest',     'AR',      'release', 'Results and verdict for the TRB and the AR.'),
-  ('SYS_TSTP_ThermalVacuumTest', 'TRR-TRB', 'draft',   'Draft for the environmental TRR.'),
-  ('SYS_TSTP_ThermalVacuumTest', 'AR',      'release', 'Agreed with ESA before the test.'),
-  ('SYS_TREP_ThermalVacuumTest', 'AR',      'release', 'Results and verdict for the TRB and the AR.'),
-
-  ('SYS_TREP_OperationsValidation', 'AR', 'release', 'Validation of the operations with the satellite and the ground segment.'),
-  ('TTC_TREP_GroundStationTest',    'AR', 'release', 'Ground station tests and results.'),
-
-  ('THS_AREP_StructuralAnalysis', 'CDR', 'release', 'Supports the DDJF and the VCDs.'),
-  ('THS_AREP_ThermalAnalysis',    'CDR', 'release', 'Supports the DDJF and the VCDs.'),
-  ('SYS_AREP_OrbitAnalysis',      'CDR', 'release', 'Supports the DDJF and the VCDs.'),
-  ('SYS_AREP_RadiationAnalysis',  'CDR', 'release', 'Supports the DDJF and the VCDs.'),
-
-  ('SYS_AREP_FailureModesEffects', 'PDR', 'draft',   'Functional FMEA per subsystem, critical single point failures.'),
-  ('SYS_AREP_FailureModesEffects', 'CDR', 'release', 'All subsystems and ground segment, critical item list, mitigations.'),
-
-  ('SYS_DREP_FaultDetectionIsolationRecovery', 'TRR-TRB', 'release', 'FDIR trees, watchdogs, safe mode; validated in the functional tests.'),
-
-  ('SYS_DREP_DeclaredMaterials', 'PDR', 'draft',   'Structural materials and main polymers.'),
-  ('SYS_DREP_DeclaredMaterials', 'CDR', 'release', 'Outgassing data of all materials (TML < 1.0 %, CVCM < 0.1 %).'),
-  ('SYS_DREP_DeclaredMaterials', 'AR',  'update',  'Materials added during assembly (adhesives, tape, staking), before TVAC.'),
-
-  ('SYS_DREP_ProductTree', 'PDR',     'draft',   'Preliminary breakdown of space and ground segment.'),
-  ('SYS_DREP_ProductTree', 'CDR',     'release', 'Complete product tree with unique identifiers.'),
-  ('SYS_DREP_ProductTree', 'TRR-TRB', 'update',  'Serial and lot numbers of the flight model components.'),
-
-  ('ELE_TREP_BatteryPackSafety', 'TRR-TRB', 'release', 'Cell screening, capacity and impedance matching, protection circuits.'),
-
-  ('RED_LOG_SatelliteLogbook', 'TRR-TRB', 'release', 'Started with the integration of the flight model.'),
-  ('RED_LOG_SatelliteLogbook', 'AR',      'update',  'Activities of the environmental campaign.'),
-  ('RED_LOG_SatelliteLogbook', 'FRR',     'update',  'Activities up to the delivery for launch.'),
-
-  ('SFW_MAN_SoftwareRepository', 'PDR',     'draft',   'Repository, folder structure, coding standards.'),
-  ('SFW_MAN_SoftwareRepository', 'CDR',     'draft',   'Architecture, state machines, protocols, prototypes.'),
-  ('SFW_MAN_SoftwareRepository', 'TRR-TRB', 'release', 'Flight software tested on hardware, frozen with a release tag.'),
-  ('SFW_MAN_SoftwareRepository', 'AR',      'ad_hoc',  'Patches after the environmental tests traced by commit and checksum.'),
-  ('SFW_MAN_SoftwareRepository', 'FRR',     'ad_hoc',  'Flight software baseline loaded before closure.'),
-
-  ('SYS_AREP_SpaceDebrisMitigation', 'PDR', 'draft',   'First estimate of the orbital decay (25-year rule).'),
-  ('SYS_AREP_SpaceDebrisMitigation', 'CDR', 'release', 'DRAMA simulations, compliance matrix, passivation, re-entry analysis.'),
-  ('SYS_AREP_SpaceDebrisMitigation', 'AR',  'update',  'Final orbit parameters and as-built mass.'),
-
-  ('MGT_PLAN_RegistrationAuthorisation', 'PDR', 'draft',   'Competent authorities, IARU coordination, ITU API publication.'),
-  ('MGT_PLAN_RegistrationAuthorisation', 'CDR', 'release', 'ITU and IARU status, radio licence, launch authorisations, export control.'),
-  ('MGT_PLAN_RegistrationAuthorisation', 'AR',  'update',  'Radio licences and national authorisation issued.'),
-  ('MGT_PLAN_RegistrationAuthorisation', 'FRR', 'update',  'Registration in the national register and with UNOOSA.'),
-
-  ('MGT_PLAN_ProjectManagement', 'PDR',     'draft',   'Organisation chart, academic support, WBS, preliminary schedule.'),
-  ('MGT_PLAN_ProjectManagement', 'CDR',     'release', 'Students, WBS, schedule to launch, budget, risk register, handover plan.'),
-  ('MGT_PLAN_ProjectManagement', 'TRR-TRB', 'ad_hoc',  'Schedule, students, organisation and handover plan kept up to date.'),
-  ('MGT_PLAN_ProjectManagement', 'AR',      'ad_hoc',  'Schedule, risks and people kept up to date.'),
-
-  ('RED_MAN_LessonsLearned', 'FRR', 'release', 'Technical and management lessons for future teams.');
+  ('RED_AREP_MissionResultsLessonsLearned', 'PFR',      'release', null);
 
 do $$
 begin
