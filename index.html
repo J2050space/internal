@@ -25,6 +25,8 @@
 
   <script type="module">
     import { supabase } from './js/config.js';
+    import { initHelp } from './js/help.js';
+    initHelp('login');
     import { getSessionProfile, landingPage, friendlyError, showMessage } from './js/auth.js';
 
     const msg = document.getElementById('login-msg');

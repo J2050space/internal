@@ -1,5 +1,6 @@
 // Shared authentication, profile and navigation helpers.
 import { supabase } from './config.js';
+import { initHelp } from './help.js';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const ALLOWED_DOMAINS = ['studenti.unipd.it', 'unipd.it'];
@@ -86,6 +87,7 @@ export function renderHeader(profile, activePage) {
     <nav>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
       <a href="gantt.html" data-page="gantt">Gantt</a>
+      <a href="documents.html" data-page="documents">Documents</a>
       <a href="stats.html" data-page="stats" data-admin hidden>Stats</a>
       <a href="members.html" data-page="members" data-admin hidden>Members</a>
       <a href="account.html" data-page="account">Account</a>
@@ -102,6 +104,7 @@ export function renderHeader(profile, activePage) {
   header.querySelector('#user-name').textContent = displayName(profile);
   header.querySelector('#user-role').textContent = profile.role;
   header.querySelector('#logout-btn').addEventListener('click', signOut);
+  initHelp(activePage);
 }
 
 // Start-up sequence of a protected page.

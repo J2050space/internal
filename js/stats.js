@@ -3,7 +3,7 @@ import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, todayIso } from './format.js';
 
-const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THM', 'TTC', 'OUT', 'MGT'];
+const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THS', 'TTC', 'OUT', 'MGT'];
 const VIEWS = [['people', 'By person'], ['tasks', 'By task'], ['matrix', 'Person × task']];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
