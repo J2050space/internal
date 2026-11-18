@@ -162,7 +162,8 @@ const PAGES = {
       </ul>
       <h3>Versions</h3>
       <ol>
-        <li><b>Start V00</b> (then V01, …): version <i>In progress</i>, with the link to the file.</li>
+        <li><b>Start first version</b>: usually V00; a document already started on SharePoint continues its numbering (e.g. V04 after V03).
+          Then <b>Start V01</b>, V02, …: version <i>In progress</i>, with the link to the file.</li>
         <li><b>Submit for review</b> (file link required). <i>Withdraw</i> brings it back in progress.</li>
         <li>An administrator <b>Approves</b> it, or <b>Returns</b> it with what has to be changed.</li>
         <li><b>Sent to ESA</b>: date, link to the copy on the ESA SharePoint, and the milestones this version fulfils.</li>
@@ -305,6 +306,7 @@ const FIELDS = {
     'e-people': 'People writing or contributing, also without an account. Free text.',
     'e-hold': 'Work suspended. Give the reason; the document is shown as "On hold" and can be filtered.',
     'e-note': 'Free note on the document.',
+    'p-num': 'Number of the first version on the site: V00 for a new document. For a document already on SharePoint, the number after its last version there (V03 there: 4). The following versions are numbered automatically.',
     'p-file': 'Link to the file of this version (SharePoint). Optional when starting the version, required to submit it for review.',
     'p-change': 'What changes compared with the previous version (e.g. "Updated after the CDR comments").',
     'p-note': 'What the responsible has to change before submitting the version again. Shown in the list of versions.',

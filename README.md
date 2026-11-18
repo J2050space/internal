@@ -58,7 +58,7 @@ A new account is `pending` until an admin approves it in `members.html`.
 - File name according to the J2050 Documentation Manual: `[SUBTEAM]_[TYPE]_[Title]_VXX` (e.g. `TTC_AREP_LinkBudget_V00`).
   Subteam codes: the departments plus `RED` (whole team, RedPill as a whole). Type codes as in the manual, plus `LOG` (logbooks and histories of an item). Subteam, type and title are fixed after the first approved version.
 - One responsible per document (active teamleader or admin); other subteams and people can be involved.
-- Versions V00, V01, ...: In progress → In review → Approved (admins) → Sent to ESA (link to the ESA SharePoint copy) → Accepted by ESA, or ESA changes required (comments). An admin can return a version in review with a note.
+- Versions V00, V01, ... (the first version can start from another number, to continue the numbering of a document started on SharePoint): In progress → In review → Approved (admins) → Sent to ESA (link to the ESA SharePoint copy) → Accepted by ESA, or ESA changes required (comments). An admin can return a version in review with a note.
 - Rights: new documents by teamleaders (who become responsible) and admins; document and versions by the responsible and admins; approval, milestones and required documents by admins.
 - Required documents: document × milestone with level (draft, release, update, ad hoc), optional Gantt task that produces it, version that fulfils it.
   The milestone view shows deliveries without a task or with a task ending after the data package is due.
@@ -82,6 +82,7 @@ Each script runs as a single transaction.
 | `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
 | `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D DRDs and of the former SharePoint tracker, required level per milestone |
 | `012_documents_fys4_phase_d.sql` | Only for databases seeded with the first version of 011: brings them to the current 011 (no effect on a new database) |
+| `013_documents_first_version.sql` | First version of a document with a chosen number (continues the SharePoint numbering) |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.

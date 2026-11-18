@@ -69,6 +69,8 @@ const ERRORS = {
   'Document not found': 'The document no longer exists: reload the page.',
   'Previous version not released': 'The last version is still in progress or in review.',
   'Version limit reached': 'Version V99 reached.',
+  'Version number out of range': 'The version number shall be between 0 and 99.',
+  'Version number can be chosen only for the first version': 'The document already has versions: the new one takes the next number.',
   'Version not found': 'The version no longer exists: reload the page.',
   'Released version cannot be changed': 'An approved version cannot be changed: start a new version.',
   'Version not in progress': 'The version is not in progress.',
@@ -506,7 +508,7 @@ function versionsHtml(d) {
   const canNew = edit && !inWork(last);
   return `<h3>Versions</h3>
     ${vers.length ? `<div class="tw short"><table><thead><tr><th>Version</th><th>Status</th><th>Links</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="hint">No version yet.</p>'}
-    ${canNew ? `<div class="buttons"><button type="button" class="secondary" id="v-new">Start ${vv(last ? last.version + 1 : 0)}</button></div>` : ''}
+    ${canNew ? `<div class="buttons"><button type="button" class="secondary" id="v-new">${last ? `Start ${vv(last.version + 1)}` : 'Start first version'}</button></div>` : ''}
     <div id="v-panel"></div>`;
 }
 
@@ -543,7 +545,10 @@ function versionPanel(d, v, action) {
     delete: 'Delete the version?' };
   let body = '';
   if (action === 'new') {
-    body = `<div class="ed-grid"><div class="span3"><label for="p-file">Link to the file (optional)</label><input id="p-file" type="url"></div>
+    const first = !versionsOf(d).length;
+    body = `<div class="ed-grid">
+      ${first ? '<div><label for="p-num">Version number</label><input id="p-num" type="number" min="0" max="99" step="1" value="0"></div><div class="span2"></div>' : ''}
+      <div class="span3"><label for="p-file">Link to the file (optional)</label><input id="p-file" type="url"></div>
       <div class="span3"><label for="p-change">What changes in this version</label><input id="p-change"></div></div>`;
   } else if (action === 'edit' || action === 'submit') {
     body = `<div class="ed-grid"><div class="span3"><label for="p-file">Link to the file</label><input id="p-file" type="url" value="${esc(v.file_url ?? '')}"></div>
@@ -569,6 +574,10 @@ function versionPanel(d, v, action) {
     : `<button type="button" data-go="${action}">Confirm</button>`;
   p.innerHTML = `<div class="card vpanel"><h3>${esc(name)}</h3>${body}<div class="buttons">${buttons}<button type="button" class="secondary" data-cancel>Cancel</button></div></div>`;
   p.querySelector('[data-cancel]').addEventListener('click', () => { p.innerHTML = ''; });
+  p.querySelector('#p-num')?.addEventListener('input', (e) => {
+    const n = Number(e.target.value);
+    if (Number.isInteger(n) && n >= 0 && n <= 99) p.querySelector('h3').textContent = `${baseName(d)}_${vv(n)}`;
+  });
   p.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => doVersionAction(d, v, b.dataset.go)));
   p.querySelector('input, textarea')?.focus();
 }
@@ -576,7 +585,13 @@ function versionPanel(d, v, action) {
 async function doVersionAction(d, v, action) {
   let call;
   if (action === 'new') {
-    call = supabase.rpc('doc_new_version', { p_document_id: d.id, p_file_url: val('p-file') || null, p_change_note: val('p-change') || null });
+    const args = { p_document_id: d.id, p_file_url: val('p-file') || null, p_change_note: val('p-change') || null };
+    if ($('#p-num')) {
+      const n = Number(val('p-num'));
+      if (!Number.isInteger(n) || n < 0 || n > 99) { toast('The version number shall be between 0 and 99.'); return; }
+      args.p_version = n;
+    }
+    call = supabase.rpc('doc_new_version', args);
   } else {
     const f = {};
     if ($('#p-file')) f.file_url = val('p-file');
