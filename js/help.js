@@ -65,8 +65,8 @@ const PAGES = {
       </ul>
       <h3>Toolbar</h3>
       <ul>
-        <li>◀ ▶ previous / next week, <i>This week</i> to come back.</li>
-        <li><i>Free seats only</i>, <i>My shifts only</i>, <i>Show requests</i>: filters. <i>Reload</i> reads the data again.</li>
+        <li>Arrows: previous / next week, <i>This week</i> to come back.</li>
+        <li><i>Free seats only</i>, <i>My shifts only</i>, <i>Show requests</i>: filters. The circular arrow reads the data again.</li>
       </ul>
       <h3>Booking a shift</h3>
       <ul>
@@ -86,7 +86,7 @@ const PAGES = {
       <ul>
         <li><b>New shift</b> (or click an empty part of a future day), with its first supervisor.</li>
         <li>In a shift: <b>Edit</b> (times, task, capacity; lowering the capacity asks which participants to remove),
-          <b>Join as supervisor…</b>, <b>Add supervisor…</b>, <b>Remove</b> a booking, <b>Delete shift</b>.</li>
+          <b>Join as supervisor…</b>, <b>Add supervisor…</b>, ✕ next to a booking to remove it, <b>Delete shift</b>.</li>
         <li>Remove participants who did not come, also after the shift: Stats counts the booked hours.</li>
         <li>Requests: <b>Approve…</b> (you can adjust hours, task and capacity) or <b>Reject</b> with a reason.</li>
       </ul>
@@ -110,8 +110,8 @@ const PAGES = {
       <h3>Toolbar</h3>
       <ul>
         <li><i>Department</i>: tasks of a department, including those in which it is involved. <i>Search</i>: code, activity, leader, people.</li>
-        <li>− / + zoom, <i>Expand all</i> / <i>Collapse all</i> subtasks (or the ▸ next to a task), <i>Hide done</i>.</li>
-        <li><i>Export CSV</i>: all tasks, for Excel (separator ;). <i>Reload</i> reads the data again.</li>
+        <li>− / + zoom; double arrows: expand / collapse all subtasks (or the arrow next to a task); <i>Hide done</i>.</li>
+        <li>Download icon: <i>Export CSV</i> of all tasks, for Excel (separator ;). Circular arrow: reads the data again.</li>
       </ul>
       <h3>Reading the Gantt</h3>
       <ul>
@@ -193,7 +193,7 @@ const PAGES = {
         <li><b>By person</b>: hours, of which supervising, number of shifts, main tasks.</li>
         <li><b>By task</b>: hours per task; the hours of the subtasks are added to their parent task.</li>
         <li><b>Person × task</b>: hours of each person on each task (hover a code for the task name).</li>
-        <li><b>Export CSV</b>: one row per person, task and role, for Excel.</li>
+        <li>Download icon (<b>Export CSV</b>): one row per person, task and role, for Excel.</li>
       </ul>
       <p>The hours are the booked ones: remove from the shift the participants who did not come (Lab shifts, also after the shift).</p>`,
   },

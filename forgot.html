@@ -3,11 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="only light">
   <title>J2050 Team Management – Forgot password</title>
+  <script>
+    // Apply the saved theme before the first paint (keys documented in js/theme.js).
+    // The cookie is read first (it is shared across ports); localStorage covers a
+    // cleared cookie jar.
+    const themeCookie = document.cookie.match(/(?:^|;\s*)j2050-theme=(light|dark)(?:;|$)/);
+    let saved = themeCookie ? themeCookie[1] : null;
+    try {
+      saved = saved || localStorage.getItem('j2050-theme');
+    } catch {
+      // Storage unavailable: the cookie still decides.
+    }
+    document.documentElement.dataset.theme =
+      saved === 'dark' || saved === 'light' ? saved
+        : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
   <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/theme.js"></script>
 </head>
 <body class="login-page">
   <main class="login-box">
+    <div class="auth-brand">
+      <span class="brand-logo" role="img" aria-label="J2050">
+        <img class="logo-on-light" src="img/j2050-logo-light.png" width="239" height="88" alt="">
+        <img class="logo-on-dark" src="img/j2050-logo-dark.png" width="241" height="88" alt="">
+      </span>
+      <span class="brand-sub">University of Padova</span>
+    </div>
     <h1>Forgot password</h1>
     <form id="forgot-form" novalidate>
       <p class="hint">A link to set a new password will be sent to this address.</p>
@@ -17,6 +41,7 @@
     </form>
     <p id="forgot-msg" class="message" role="alert" hidden></p>
     <p class="links"><a href="index.html">Back to login</a></p>
+    <p class="auth-foot">For authorised lab members only.</p>
   </main>
 
   <script type="module">

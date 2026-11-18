@@ -3,6 +3,7 @@
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, formatTime, formatDateTime, zonedParts, zonedToIso, todayIso } from './format.js';
+import { icon } from './icons.js';
 
 /* ---------- constants ---------- */
 const DAY_START = 8 * 60 + 30; // 08:30
@@ -179,17 +180,17 @@ function renderTools() {
   const from = firstMonday();
   const to = iso(dn(from) + 11); // Friday of the second week
   document.getElementById('s-tools').innerHTML = `
-    <button type="button" class="secondary" data-act="prev" aria-label="Previous week">◀</button>
+    <button type="button" class="secondary btn-icon" data-act="prev" aria-label="Previous week" title="Previous week">${icon('chevron-left')}</button>
     <button type="button" class="secondary" data-act="now"${ui.week === 0 ? ' disabled' : ''}>This week</button>
-    <button type="button" class="secondary" data-act="next" aria-label="Next week">▶</button>
+    <button type="button" class="secondary btn-icon" data-act="next" aria-label="Next week" title="Next week">${icon('chevron-right')}</button>
     <span class="range">${formatDate(from)} – ${formatDate(to)}</span>
     <label class="chk"><input type="checkbox" id="f-free"${ui.onlyFree ? ' checked' : ''}> Free seats only</label>
     <label class="chk"><input type="checkbox" id="f-mine"${ui.onlyMine ? ' checked' : ''}> My shifts only</label>
     <label class="chk"><input type="checkbox" id="f-req"${ui.showRequests ? ' checked' : ''}> Show requests</label>
-    <button type="button" class="secondary" data-act="reload">Reload</button>`;
+    <button type="button" class="secondary btn-icon" data-act="reload" title="Reload" aria-label="Reload">${icon('rotate-cw')}</button>`;
   document.getElementById('s-actions').innerHTML = ADMIN
-    ? '<button type="button" data-act="new-shift">New shift</button>'
-    : '<button type="button" data-act="new-request">Request a shift</button>';
+    ? `<button type="button" class="btn-with-icon" data-act="new-shift">${icon('calendar-plus')} New shift</button>`
+    : `<button type="button" class="btn-with-icon" data-act="new-request">${icon('calendar-plus')} Request a shift</button>`;
 }
 
 /* ---------- grid ---------- */
@@ -384,7 +385,7 @@ function bookingList(s) {
   if (!s.bookings.length) return '<p class="hint">Nobody booked yet.</p>';
   return `<ul class="people">${s.bookings.map((b) => `<li><span>${esc(b.name)}${b.user_id === ME ? ' (you)' : ''}
       <span class="hint">· ${b.role} · ${formatTime(b.starts_at)}–${formatTime(b.ends_at)}</span></span>
-      ${ADMIN ? `<button type="button" class="danger" data-act="remove" data-user="${b.user_id}">Remove</button>` : ''}</li>`).join('')}</ul>`;
+      ${ADMIN ? `<button type="button" class="danger btn-icon" data-act="remove" data-user="${b.user_id}" aria-label="Remove booking for ${esc(b.name)}" title="Remove booking for ${esc(b.name)}">${icon('x')}</button>` : ''}</li>`).join('')}</ul>`;
 }
 
 function openShift(id) {
@@ -406,13 +407,13 @@ function openShift(id) {
     <h2 style="font-size:.95rem;margin-top:12px">Bookings</h2>${bookingList(s)}
     <p class="message" role="alert" hidden></p>
     <div class="buttons">
-      ${ADMIN ? '<button type="button" class="danger" data-act="delete-shift">Delete shift</button>' : ''}
-      ${ADMIN ? '<button type="button" class="secondary" data-act="edit-shift">Edit</button>' : ''}
+      ${ADMIN ? `<button type="button" class="danger btn-with-icon" data-act="delete-shift">${icon('trash-2')} Delete shift</button>` : ''}
+      ${ADMIN ? `<button type="button" class="secondary btn-with-icon" data-act="edit-shift">${icon('pencil')} Edit</button>` : ''}
       ${ADMIN && !s.ended ? '<button type="button" class="secondary" data-act="add-sup">Add supervisor…</button>' : ''}
       ${ownFuture ? '<button type="button" class="danger" data-act="cancel-own">Cancel my booking</button>' : ''}
       ${ownFuture ? '<button type="button" class="secondary" data-act="change-own">Change my hours…</button>' : ''}
       ${canBook ? `<button type="button" data-act="book">${ADMIN ? 'Join as supervisor…' : 'Book…'}</button>` : ''}
-      <button type="button" class="secondary" data-act="close">Close</button>
+      <button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Close</button>
     </div>`);
 
   box.addEventListener('click', async (e) => {
@@ -492,7 +493,7 @@ function openBookingForm(s, userId) {
       <div id="b-hours"></div>
       <p id="b-summary" class="message info"></p>
       <p class="message" role="alert" hidden></p>
-      <div class="buttons"><button type="button" class="secondary" data-act="close">Cancel</button>
+      <div class="buttons"><button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Cancel</button>
         <button type="submit" id="b-ok">Confirm</button></div>
     </form>`);
 
@@ -569,8 +570,8 @@ function openRequest(id) {
     <div class="buttons">
       ${ADMIN && r.status === 'pending' ? '<button type="button" class="danger" data-act="reject">Reject</button>' : ''}
       ${ADMIN && r.status === 'pending' && !r.started ? '<button type="button" data-act="approve">Approve…</button>' : ''}
-      ${r.own && r.status === 'pending' ? '<button type="button" class="secondary" data-act="withdraw">Withdraw</button>' : ''}
-      <button type="button" class="secondary" data-act="close">Close</button>
+      ${r.own && r.status === 'pending' ? `<button type="button" class="secondary btn-with-icon" data-act="withdraw">${icon('undo-2')} Withdraw</button>` : ''}
+      <button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Close</button>
     </div>`);
   box.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]');
@@ -655,7 +656,7 @@ function openShiftForm(s, prefill = {}) {
       <label for="f-desc">Work to do</label><textarea id="f-desc" maxlength="1000">${esc(v.description ?? '')}</textarea>
       <label for="f-notes">Notes</label><input id="f-notes" type="text" maxlength="300" value="${esc(v.notes ?? '')}">
       <p class="message" role="alert" hidden></p>
-      <div class="buttons"><button type="button" class="secondary" data-act="close">Cancel</button><button type="submit">Save</button></div>
+      <div class="buttons"><button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Cancel</button><button type="submit" class="btn-with-icon">${icon('check')} Save</button></div>
     </form>`);
 
   const capInput = box.querySelector('#f-cap');
@@ -730,7 +731,7 @@ function openRequestForm(prefill = {}) {
       <label for="f-desc">Work to do (required)</label><textarea id="f-desc" maxlength="1000" required></textarea>
       <label for="f-loc">Location</label><input id="f-loc" type="text" maxlength="80">
       <p class="message" role="alert" hidden></p>
-      <div class="buttons"><button type="button" class="secondary" data-act="close">Cancel</button><button type="submit">Send request</button></div>
+      <div class="buttons"><button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Cancel</button><button type="submit" class="btn-with-icon">${icon('calendar-plus')} Send request</button></div>
     </form>`);
   box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
   box.querySelector('form').addEventListener('submit', async (e) => {
@@ -771,7 +772,7 @@ function openApproveForm(r) {
       <label for="f-desc">Work to do</label><textarea id="f-desc" maxlength="1000">${esc(r.description)}</textarea>
       <label for="f-note">Note to the requester</label><input id="f-note" type="text" maxlength="300">
       <p class="message" role="alert" hidden></p>
-      <div class="buttons"><button type="button" class="secondary" data-act="close">Cancel</button><button type="submit">Approve and create shift</button></div>
+      <div class="buttons"><button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Cancel</button><button type="submit" class="btn-with-icon">${icon('check')} Approve and create shift</button></div>
     </form>`);
   box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
   box.querySelector('form').addEventListener('submit', async (e) => {
@@ -809,7 +810,7 @@ function openRejectForm(r) {
     <form novalidate>
       <label for="f-note">Reason (shown to the team)</label><input id="f-note" type="text" maxlength="300">
       <p class="message" role="alert" hidden></p>
-      <div class="buttons"><button type="button" class="secondary" data-act="close">Cancel</button><button type="submit" class="danger">Reject</button></div>
+      <div class="buttons"><button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Cancel</button><button type="submit" class="danger btn-with-icon">${icon('x')} Reject</button></div>
     </form>`);
   box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
   box.querySelector('form').addEventListener('submit', async (e) => {
