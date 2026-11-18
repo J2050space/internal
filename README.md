@@ -80,7 +80,8 @@ Each script runs as a single transaction.
 | `008_gantt_editing.sql` | Atomic task save, concurrent-change check, change history |
 | `009_gantt_reset_new_model.sql` | Gantt reset, task codes, new date and status model |
 | `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
-| `011_documents_seed.sql` | Initial milestones and documents required by ESA (FYS documentation timeline) |
+| `011_documents_seed.sql` | Initial milestones and documents required by ESA (draft timeline, replaced by 012) |
+| `012_documents_fys4_phase_d.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2) and documents required by the FYS4 Phase D DRDs; replaces the data of 011 |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.

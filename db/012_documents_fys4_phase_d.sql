@@ -1,0 +1,213 @@
+-- =====================================================================
+-- J2050 internal tools - migration 012
+-- Scope: replaces the milestones and documents of migration 011 (taken
+-- from a draft timeline) with the FYS4 Phase D, E1 and E2 programme:
+--   * milestones = ESA deadline keys with deliverables (D1.10 ... D2.80),
+--     data package due date and review date set later by the admins;
+--   * documents and required level at each milestone, as listed in the
+--     milestone and deliverables summaries of the FYS4 training week and
+--     in the FYS4 Phase D DRDs and Guidelines v1.0.
+--   RedPill is a PocketQube: the Equipment Qualification Status List
+--   (CubeSats only) is not required.
+--   Requirements marked "assumption" in their note are not in the ESA
+--   lists and can be changed from the site.
+-- Old milestones (PDR, CDR, TRR-TRB, AR, FRR) are deleted with their
+-- requirements. Documents of 011 no longer required are deleted unless
+-- they already have versions. Existing documents keep id, versions and
+-- responsible; name, ESA code and note are updated.
+-- Prerequisite: migrations 010 and 011 applied.
+-- Run once in Supabase > SQL Editor. Runs as one transaction.
+-- =====================================================================
+begin;
+
+-- ---------------------------------------------------------------------
+-- 1. Milestones
+-- ---------------------------------------------------------------------
+delete from public.milestones where code in ('PDR', 'CDR', 'TRR-TRB', 'AR', 'FRR');
+
+insert into public.milestones (code, name, phase, sort_order, note) values
+  ('KOR',      'Kick Off Review (D1.10)',                                     'D1',  10,
+   'Soundness of the design and consolidated AIV plan. Satellite Project File before the review, then team presentation.'),
+  ('IFV',      'Interfaces Verification (D1.20)',                             'D1',  20,
+   'University cleanroom, once the flight model is integrated: FDS interface requirements (mass, dimensions, layout), basic functions, deployer fit check if possible.'),
+  ('FTC-KO',   'Functional Test Campaign Kick Off (D1.30)',                   'D1',  30,
+   'Online with ESA at least 2 weeks before the campaign: integration results, open RIDs, actions, NCRs and RFWs, test documents complete, configuration control, facilities and GSE.'),
+  ('FFT-PRT',  'Full Functional Test, Post Test Review (D1.45)',              'D1',  40,
+   'FFT Test Readiness Review (D1.40) at the university before the test.'),
+  ('MT-TRR',   'Mission Test, Test Readiness Review (D1.50)',                 'D1',  50, null),
+  ('MT-PRT',   'Mission Test, Post Test Review (D1.55)',                      'D1',  60, null),
+  ('D1-CO',    'Phase D1 Close-out, Ticket to Test (D1.60 data package, D1.70 review)', 'D1', 70,
+   'Satellite integrated and tested in laboratory conditions, NCRs processed, TS-VCD and FDS-VCD up to date, RFDs and RFWs processed, KOR and FTC items closed. NCR, RFD and RFW are delivered with the data package.'),
+  ('ETC-KO',   'Environmental Test Campaign Kick Off (D2.10)',                'D2',  80,
+   'Online with ESA: functional test results, open RIDs, NCRs and RFWs, final analyses, test levels and schedule, GSE, satellite ready for shipment. Consent to ship follows.'),
+  ('VT-TRR',   'Vibration Test, Test Readiness Review (D2.20)',               'D2',  90,
+   'At the ESA test facility. Post Test Review: D2.25.'),
+  ('TVAC-TRR', 'Thermal Vacuum Test, Test Readiness Review (D2.30)',          'D2', 100,
+   'At the ESA test facility. Post Test Review: D2.35.'),
+  ('FAR',      'Flight Acceptance Review, Ticket to Orbit (D2.40 data package, D2.80 board)', 'D2', 110,
+   'ESA review of the data package, RIDs and colocations (D2.50-D2.70), then FAR Board. NCRs closed or with a closure plan, RFDs and RFWs approved; NCR, RFD and RFW delivered with the data package.'),
+  ('LAUNCH',   'Launch Campaign (Phase E1)',                                  'E1', 120, null),
+  ('PFR',      'Post Flight Review (Phase E2)',                               'E2', 130, null)
+on conflict (code) do update set
+  name = excluded.name, phase = excluded.phase, sort_order = excluded.sort_order, note = excluded.note;
+
+-- ---------------------------------------------------------------------
+-- 2. Documents
+-- ---------------------------------------------------------------------
+create temp table seed_documents (subteam text, doc_type text, title text, name text, esa_code text, note text) on commit drop;
+
+insert into seed_documents values
+  -- Kick Off Review
+  ('SYS', 'DREP', 'SatelliteProjectFile',             'Satellite Project File',                                      'SPF',       'Derived from the Satellite Proposal.'),
+  ('SYS', 'AREP', 'FailureModesEffects',              'Failure Modes, Effects and Criticality Analysis',             'FMECA',     'Basis of the FDIR verification in the functional and mission tests.'),
+  -- Assembly, integration, interfaces verification
+  ('RED', 'PROC', 'SatelliteIntegration',             'Assembly and Integration Procedure',                          'AI-PRO',    'System level. The as-run version closes the integration.'),
+  ('RED', 'LOG',  'SatelliteLogbook',                 'Satellite Logbook',                                           'LOG',       'Activities, travel, battery cycles, antenna deployments, connector matings. Travels with the satellite.'),
+  ('SYS', 'TREP', 'InterfacesVerification',           'Interfaces Verification Report',                              'IFV-RPT',   'As-run ESA Interfaces Verification Procedure for PocketQubes.'),
+  ('SYS', 'TREP', 'SatelliteInspection',              'Satellite Inspection Report',                                 'SAT-IRPT',  'As-run ESA Inspection Procedure for PocketQubes, repeated before and after shipment and tests.'),
+  -- Functional test campaign
+  ('SYS', 'TSTP', 'FullFunctionalTest',               'Full Functional Test Specification and Procedure',            'FFT-TSTP',  null),
+  ('SYS', 'TSTP', 'MissionTest',                      'Mission Test Specification and Procedure',                    'MIS-TSTP',  'May include the end-to-end test.'),
+  ('SYS', 'TSTP', 'ReducedFunctionalTest',            'Reduced Functional Test Specification and Procedure',         'RFT-TSTP',  'Run before and after each environmental test and each transport.'),
+  ('SYS', 'TREP', 'FullFunctionalTest',               'Full Functional Test Report',                                 'FFT-TRPT',  null),
+  ('SYS', 'TREP', 'MissionTest',                      'Mission Test Report',                                         'MIS-TRPT',  null),
+  ('SYS', 'TREP', 'ReducedFunctionalTest',            'Reduced Functional Test Report',                              'RFT-TRPT',  null),
+  -- Operations and ground segment
+  ('SYS', 'MAN',  'SatelliteOperations',              'Operations Manual',                                           'OPS-MAN',   null),
+  ('SYS', 'TREP', 'OperationsValidation',             'Operational Procedures Validation',                           'OPS-VAL',   'Procedures, TM and TC validated, with set-up and software versions.'),
+  ('TTC', 'TREP', 'GroundStationTest',                'Ground Station Test Report',                                  'GS-TRPT',   'Recommended tests in Annex 1 of the Phase D DRDs.'),
+  -- Requirements compliance, legal and regulatory
+  ('SYS', 'VCD',  'TechnicalSpecification',           'Technical Specification Verification Control Document',       'TS-VCD',    'Kept in the VCD tool of the FYS portal.'),
+  ('SYS', 'VCD',  'FYSDesignSpecification',           'FYS Design Specification Verification Control Document',      'FDS-VCD',   'Kept in the VCD tool of the FYS portal.'),
+  ('MGT', 'PLAN', 'RegistrationAuthorisation',        'Registration and Authorisation Status Report',                'REG-AUT',   null),
+  ('SYS', 'AREP', 'SpaceDebrisMitigation',            'Space Debris Mitigation Report',                              'SDMR',      null),
+  -- Environmental test campaign
+  ('SYS', 'TSTP', 'VibrationTest',                    'Vibration Test Specification and Procedure',                  'VIBE-TSTP', 'DRD in the FYS4 Environmental Testing DRDs and Guidelines.'),
+  ('SYS', 'TSTP', 'ThermalVacuumTest',                'Thermal Vacuum Test Specification and Procedure',             'TVAC-TSTP', 'DRD in the FYS4 Environmental Testing DRDs and Guidelines.'),
+  ('SYS', 'TREP', 'VibrationTest',                    'Vibration Test Report',                                       'VT-TRPT',   null),
+  ('SYS', 'TREP', 'ThermalVacuumTest',                'Thermal Vacuum Test Report',                                  'TVAC-TRPT', null),
+  ('SYS', 'DREP', 'DeclaredMaterials',                'Declared Materials List',                                     'DML',       'ESA template on the FYS portal.'),
+  ('THS', 'AREP', 'StructuralAnalysis',               'Structural Analysis Report',                                  'STR-ARPT',  null),
+  ('THS', 'AREP', 'ThermalAnalysis',                  'Thermal Analysis Report',                                     'THR-ARPT',  null),
+  ('SYS', 'PLAN', 'SatelliteShipment',                'Shipment Plan',                                               null,        'Transport to the ESA test facility: packaging, customs.'),
+  ('SYS', 'MAN',  'GroundHandling',                   'Ground Handling User Manual',                                 'GHUM',      'Travels with the satellite: shipment, tests, deployer integration.'),
+  ('SYS', 'TREP', 'MDVReport',                        'MDV Report',                                                  'MDV-RPT',   'Listed in the FAR data package: confirm with ESA what MDV stands for, then rename.'),
+  ('ELE', 'TREP', 'BatteryPackSafety',                'Battery Report',                                              'BAT-RPT',   'Space debris and launch safety compliance of the batteries; includes the battery log.'),
+  -- Configuration control
+  ('SYS', 'DREP', 'ProductTree',                      'Spacecraft Product Tree',                                     'SPT',       'ESA template on the FYS portal.'),
+  ('SFW', 'MAN',  'SoftwareRepository',               'Software Repository',                                         null,        'Configuration control of the on-board and ground software.'),
+  -- Launch campaign and operations
+  ('SYS', 'AREP', 'LaunchSafetyDataPackage',          'Launch and Safety Data Package',                              null,        null),
+  ('SYS', 'PROC', 'PreflightCheckout',                'Pre-flight Check-out Procedure',                              null,        null),
+  ('SYS', 'DREP', 'InterfaceControl',                 'Interface Control Document',                                  'ICD',       null),
+  ('RED', 'AREP', 'MissionResultsLessonsLearned',     'Post Flight Report: Mission Results and Lessons Learned',     null,        null);
+
+-- Documents of 011 that are no longer required: removed when they have no version yet
+do $$
+declare
+  v_old text[] := array[
+    'SYS_DREP_MissionDescriptionOperations', 'SYS_DREP_DesignDefinitionJustification',
+    'SYS_AREP_MissionOperationsResults', 'SYS_PLAN_AssemblyIntegrationVerification',
+    'SYS_VCD_EquipmentQualificationStatus', 'SYS_AREP_OrbitAnalysis', 'SYS_AREP_RadiationAnalysis',
+    'SYS_DREP_FaultDetectionIsolationRecovery', 'MGT_PLAN_ProjectManagement', 'RED_MAN_LessonsLearned'];
+  v_kept text;
+begin
+  delete from public.documents d
+  where d.subteam || '_' || d.doc_type || '_' || d.title = any (v_old)
+    and not exists (select 1 from public.document_versions v where v.document_id = d.id);
+  select string_agg(d.subteam || '_' || d.doc_type || '_' || d.title, ', ') into v_kept
+  from public.documents d where d.subteam || '_' || d.doc_type || '_' || d.title = any (v_old);
+  if v_kept is not null then
+    raise notice 'Kept because they have versions (delete them from the site if not needed): %', v_kept;
+  end if;
+end $$;
+
+insert into public.documents (subteam, doc_type, title, name, esa_code, note)
+select subteam, doc_type, title, name, esa_code, note from seed_documents
+on conflict (subteam, doc_type, title) do update set
+  name = excluded.name, esa_code = excluded.esa_code, note = excluded.note;
+
+-- ---------------------------------------------------------------------
+-- 3. Required level at each milestone
+-- ---------------------------------------------------------------------
+create temp table seed_requirements (file text, milestone text, level text, note text) on commit drop;
+
+insert into seed_requirements values
+  ('SYS_DREP_SatelliteProjectFile',  'KOR', 'release', null),
+  ('SYS_AREP_FailureModesEffects',   'KOR', 'release', 'FME(C)A deliverable at the KOR.'),
+
+  ('RED_PROC_SatelliteIntegration',  'IFV', 'release', 'As-run procedure with photos and videos of the integration.'),
+  ('RED_LOG_SatelliteLogbook',       'IFV', 'ad_hoc',  'Started at the first assembly, kept up to date.'),
+
+  ('SYS_TREP_InterfacesVerification', 'FTC-KO', 'release', null),
+  ('SYS_TREP_SatelliteInspection',    'FTC-KO', 'release', 'With the interfaces verification, at the end of the integration.'),
+  ('SYS_TSTP_FullFunctionalTest',     'FTC-KO', 'release', null),
+  ('SYS_TSTP_MissionTest',            'FTC-KO', 'release', null),
+
+  ('SYS_TSTP_FullFunctionalTest',     'FFT-PRT', 'update', 'As-run procedure.'),
+  ('SYS_MAN_SatelliteOperations',     'MT-TRR',  'release', null),
+  ('SYS_TSTP_MissionTest',            'MT-PRT',  'update', 'As-run procedure.'),
+
+  ('SYS_TREP_FullFunctionalTest',        'D1-CO', 'draft',   null),
+  ('SYS_TREP_MissionTest',               'D1-CO', 'draft',   null),
+  ('SYS_VCD_TechnicalSpecification',     'D1-CO', 'update',  'Phase D1 status.'),
+  ('SYS_VCD_FYSDesignSpecification',     'D1-CO', 'update',  'Phase D1 status.'),
+  ('SYS_MAN_SatelliteOperations',        'D1-CO', 'update',  null),
+  ('SYS_TREP_OperationsValidation',      'D1-CO', 'release', null),
+  ('MGT_PLAN_RegistrationAuthorisation', 'D1-CO', 'update',  null),
+
+  ('SYS_TSTP_VibrationTest',          'ETC-KO', 'draft',   null),
+  ('SYS_TSTP_ThermalVacuumTest',      'ETC-KO', 'draft',   null),
+  ('SYS_DREP_DeclaredMaterials',      'ETC-KO', 'update',  null),
+  ('THS_AREP_StructuralAnalysis',     'ETC-KO', 'update',  null),
+  ('THS_AREP_ThermalAnalysis',        'ETC-KO', 'update',  null),
+  ('SYS_PLAN_SatelliteShipment',      'ETC-KO', 'release', 'Part of the environmental test data package.'),
+  ('SYS_TSTP_ReducedFunctionalTest',  'ETC-KO', 'release', 'Assumption: not in the ESA list, needed before shipment and tests.'),
+  ('SYS_MAN_GroundHandling',          'ETC-KO', 'release', 'Assumption: not in the ESA list, needed before shipment.'),
+
+  ('SYS_TSTP_VibrationTest',          'VT-TRR',   'release', 'Assumption: final version before the test.'),
+  ('SYS_TSTP_ThermalVacuumTest',      'TVAC-TRR', 'release', 'Assumption: final version before the test.'),
+
+  ('SYS_TREP_FullFunctionalTest',        'FAR', 'release', null),
+  ('SYS_TREP_MissionTest',               'FAR', 'release', null),
+  ('SYS_TREP_VibrationTest',             'FAR', 'release', null),
+  ('SYS_TREP_ThermalVacuumTest',         'FAR', 'release', null),
+  ('SYS_TREP_MDVReport',                 'FAR', 'release', null),
+  ('SYS_VCD_TechnicalSpecification',     'FAR', 'update',  'Phase D2 status: requirements closed.'),
+  ('SYS_VCD_FYSDesignSpecification',     'FAR', 'update',  'Phase D2 status: requirements closed.'),
+  ('SYS_MAN_SatelliteOperations',        'FAR', 'update',  null),
+  ('TTC_TREP_GroundStationTest',         'FAR', 'release', 'At the latest for the FAR.'),
+  ('ELE_TREP_BatteryPackSafety',         'FAR', 'release', 'TBC by ESA.'),
+  ('SYS_AREP_SpaceDebrisMitigation',     'FAR', 'update',  null),
+  ('MGT_PLAN_RegistrationAuthorisation', 'FAR', 'update',  null),
+  ('SYS_AREP_LaunchSafetyDataPackage',   'FAR', 'draft',   'TBC by ESA, depends on the launch.'),
+  ('SYS_TREP_SatelliteInspection',       'FAR', 'ad_hoc',  'Inspections before and after shipment and tests.'),
+  ('SYS_TREP_ReducedFunctionalTest',     'FAR', 'ad_hoc',  'After each RFT; may be part of the vibration and TVAC reports.'),
+  ('SYS_DREP_ProductTree',               'FAR', 'ad_hoc',  'As-built configuration.'),
+  ('SFW_MAN_SoftwareRepository',         'FAR', 'ad_hoc',  'Flight software baseline.'),
+
+  ('SYS_AREP_LaunchSafetyDataPackage',   'LAUNCH', 'release', null),
+  ('SYS_PROC_PreflightCheckout',         'LAUNCH', 'release', null),
+  ('SYS_DREP_InterfaceControl',          'LAUNCH', 'release', null),
+  ('SYS_MAN_GroundHandling',             'LAUNCH', 'update',  'Assumption: deployer integration, pre-flight tests and maintenance.'),
+
+  ('RED_AREP_MissionResultsLessonsLearned', 'PFR', 'release', null);
+
+do $$
+begin
+  if exists (select 1 from seed_requirements r
+             where not exists (select 1 from public.documents d
+                               where d.subteam || '_' || d.doc_type || '_' || d.title = r.file)
+                or not exists (select 1 from public.milestones m where m.code = r.milestone)) then
+    raise exception 'Seed: unknown document or milestone';
+  end if;
+end $$;
+
+insert into public.document_requirements (milestone_id, document_id, level, note)
+select m.id, d.id, r.level, r.note
+from seed_requirements r
+join public.documents  d on d.subteam || '_' || d.doc_type || '_' || d.title = r.file
+join public.milestones m on m.code = r.milestone
+on conflict (milestone_id, document_id) do update set level = excluded.level, note = excluded.note;
+
+commit;
