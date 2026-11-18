@@ -81,7 +81,6 @@ Each script runs as a single transaction.
 | `009_gantt_reset_new_model.sql` | Gantt reset, task codes, new date and status model |
 | `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
 | `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D DRDs and of the former SharePoint tracker, required level per milestone |
-| `012_documents_fys4_phase_d.sql` | Only for the production database (created with the first versions of 010 and 011): brings it to the current 010 and 011. A new database needs only 010 and 011 |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.

@@ -20,8 +20,6 @@
 --   * Department THM renamed THS (Thermostructure), task codes included.
 --   * The first version of a document can have any number, to continue
 --     the numbering of a document started on SharePoint.
--- The production database, created with the first version of this file
--- and of 011, is brought up to date by 012.
 -- Prerequisite: migrations 001-009 applied.
 -- Run once in Supabase > SQL Editor. Runs as one transaction.
 -- =====================================================================

@@ -14,8 +14,6 @@
 -- Requirements marked "assumption" in their note are not in the ESA
 -- lists. Documents without requirement are assigned from the site.
 -- NCR, RFD and RFW are created when needed: no fixed document.
--- Rewritten on 2026-11-18: databases seeded with the first version of
--- this file are updated by migration 012.
 -- Prerequisite: migration 010 applied.
 -- Run once in Supabase > SQL Editor. Runs as one transaction.
 -- =====================================================================
