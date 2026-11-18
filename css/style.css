@@ -653,3 +653,105 @@ td select, td input:not([type="checkbox"]):not([type="radio"]) { width: 100%; mi
 }
 /* Keep the toggle icon-only when the responsive header shrinks its buttons. */
 #app-header .user .theme-toggle { width: 34px; height: 34px; padding: 0; font-size: 0; }
+
+/* ---------- Help (js/help.js) ---------- */
+/* Page guide: "?" next to the theme toggle, or in the corner of the login box. */
+.help-btn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  flex: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.help-btn:hover:not(:disabled) { color: var(--text); background: var(--surface-2); }
+.login-box { position: relative; }
+.login-box > .help-btn { position: absolute; top: 16px; right: 16px; }
+.login-box .auth-brand { padding-right: 40px; }
+
+/* Field help: small "?" after a label, text in a bubble. */
+button.fh {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  margin-left: 5px;
+  flex: none;
+  vertical-align: 1px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  box-shadow: none;
+  cursor: help;
+}
+button.fh:hover:not(:disabled), button.fh[aria-expanded="true"] {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+#fh-pop {
+  position: fixed;
+  z-index: 100;
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--toast-text);
+  background: var(--toast-bg);
+  border: 1px solid var(--toast-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Page guide dialog */
+.help-dlg {
+  width: min(760px, calc(100vw - 32px));
+  max-height: 85vh;
+  overflow: auto;
+  padding: 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.help-dlg::backdrop { background: rgba(23, 23, 23, .45); }
+.help-body { padding: 0 24px 20px; font-size: 0.875rem; }
+.help-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 0 10px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.help-head h2 { margin: 0; }
+.help-head button { min-height: 30px; padding: 0 10px; }
+.help-body h3 { font-size: 0.9375rem; margin: 16px 0 6px; }
+.help-body p { margin: 6px 0; }
+.help-body ul, .help-body ol { margin: 0 0 8px; padding-left: 20px; }
+.help-body li { margin: 3px 0; }
+.help-body .mono { font-family: var(--font-mono); font-size: 0.85em; }
+.help-tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  vertical-align: 1px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--info);
+  background: var(--info-bg);
+}
+.help-foot { margin: 14px 0 0; }

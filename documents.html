@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="only light">
+  <title>J2050 Team Management – Documents</title>
+  <script>
+    // Apply the saved theme before the first paint (keys documented in js/theme.js).
+    // The cookie is read first (it is shared across ports); localStorage covers a
+    // cleared cookie jar.
+    const themeCookie = document.cookie.match(/(?:^|;\s*)j2050-theme=(light|dark)(?:;|$)/);
+    let saved = themeCookie ? themeCookie[1] : null;
+    try {
+      saved = saved || localStorage.getItem('j2050-theme');
+    } catch {
+      // Storage unavailable: the cookie still decides.
+    }
+    document.documentElement.dataset.theme =
+      saved === 'dark' || saved === 'light' ? saved
+        : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/gantt.css">
+  <link rel="stylesheet" href="css/documents.css">
+</head>
+<body>
+  <header id="app-header"></header>
+  <main id="app-main" style="max-width:none">
+    <div class="g-top">
+      <div>
+        <h1>Documents</h1>
+        <p class="g-sub">RedPill (J2050) – file names: [SUBTEAM]_[TYPE]_[Title]_VXX</p>
+      </div>
+      <ul class="stats" id="stats"></ul>
+    </div>
+    <nav class="g-nav" id="d-nav" aria-label="Views"></nav>
+    <div id="view"><p class="hint">Loading…</p></div>
+  </main>
+  <div id="d-modal" class="modal" hidden></div>
+  <div id="toast" hidden></div>
+
+  <script type="module" src="js/documents.js"></script>
+</body>
+</html>

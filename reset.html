@@ -47,6 +47,8 @@
 
   <script type="module">
     import { supabase } from './js/config.js';
+    import { initHelp } from './js/help.js';
+    initHelp('reset');
     import { checkPassword, friendlyError, showMessage } from './js/auth.js';
 
     const form = document.getElementById('reset-form');

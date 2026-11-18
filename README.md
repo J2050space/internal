@@ -1,6 +1,6 @@
 # J2050 Team Management
 
-Internal web tool of the J2050 team (University of Padova): project Gantt and laboratory shift booking.
+Internal web tool of the J2050 team (University of Padova): project Gantt, document register and laboratory shift booking.
 
 Site: <https://j2050space.github.io/internal/> (login required).
 
@@ -22,10 +22,15 @@ The pages only check inputs to give clear messages before sending.
 |---|---|---|
 | `index.html`, `register.html`, `welcome.html`, `forgot.html`, `reset.html` | everyone | Login, registration (only `@studenti.unipd.it` and `@unipd.it`), first access, password reset |
 | `shifts.html` | active members | Lab shifts: two weekly grids, half-hour slots 08:30-18:30, booking, shift requests |
-| `gantt.html` | active members (editing: admins) | Project Gantt, task editor, timeline events |
+| `gantt.html` | active members (editing: admins) | Project Gantt, task editor, timeline events, review milestones |
+| `documents.html` | active members (rights below) | Document register, versions and ESA deliveries, documents required per milestone, review queue |
 | `account.html` | active members | Name and password |
 | `stats.html` | admins | Booked hours of ended shifts, by person and by task |
 | `members.html` | admins | Approval of registrations, roles, department leaders |
+
+Every page has a "?" button with its guide, and the fields of the forms have a "?" with their meaning.
+All texts are in `js/help.js` (`PAGES`: guide of each page; `FIELDS`: help of each field, keyed by the id of the control):
+update them when a page or a field changes.
 
 ## Roles
 
@@ -41,11 +46,24 @@ A new account is `pending` until an admin approves it in `members.html`.
 
 - Task code generated on creation: `<department>-<nn>` (e.g. `ELE-01`); subtask `<parent>.<n>` (e.g. `ELE-01.2`).
   Numbers are never reused. Code, parent and department of a top-level task cannot be changed.
-- Departments: SYS, ELE, SFW, AOCS, THM, TTC, OUT, MGT.
+- Departments: SYS, ELE, SFW, AOCS, THS, TTC, OUT, MGT.
 - Dates: planned start and end (the bar), optional deadline (the gap is the margin), actual start and completion dates.
 - Status derived from the dates: Planned, Not started (late), In progress, Overdue, Done; plus Blocked (manual, with reason) and At risk (planned end after the deadline, or deadline passed).
 - A task with subtasks takes dates and progress from its subtasks.
 - Default leader: leader of the task department, then leader of the parent task; an admin can set a different leader on the task.
+- Review milestones (PDR, CDR, ...) are edited in `documents.html` and shown as vertical lines in the Gantt.
+
+## Documents
+
+- File name according to the J2050 Documentation Manual: `[SUBTEAM]_[TYPE]_[Title]_VXX` (e.g. `TTC_AREP_LinkBudget_V00`).
+  Subteam codes: the departments plus `RED` (whole team, RedPill as a whole). Type codes as in the manual, plus `LOG` (logbooks and histories of an item). Subteam, type and title are fixed after the first approved version.
+- One responsible per document (active teamleader or admin); other subteams and people can be involved.
+- Links: the SharePoint folder and the working file (Word, Excel; one for all versions) on the document, the PDF on each version.
+  An approved version is frozen, also for admins: changes go in the next version (an admin can reset a version, with history).
+- Versions V00, V01, ... (the first version can start from another number, to continue the numbering of a document started on SharePoint): In progress → In review → Approved (admins) → Sent to ESA (link to the ESA SharePoint copy) → Accepted by ESA, or ESA changes required (comments). An admin can return a version in review with a note.
+- Rights: new documents by teamleaders (who become responsible) and admins; document and versions by the responsible and admins; approval, milestones and required documents by admins.
+- Required documents: document × milestone with level (draft, release, update, ad hoc), optional Gantt task that produces it, version that fulfils it.
+  The milestone view shows deliveries without a task or with a task ending after the data package is due.
 
 ## Database migrations
 
@@ -63,6 +81,9 @@ Each script runs as a single transaction.
 | `007_half_hour_slots.sql` | Bookings by half-hour slots, supervisors |
 | `008_gantt_editing.sql` | Atomic task save, concurrent-change check, change history |
 | `009_gantt_reset_new_model.sql` | Gantt reset, task codes, new date and status model |
+| `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
+| `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D and environmental testing DRDs, of the Satellite Project File DRD and of the former SharePoint tracker, required level per milestone |
+| `012_documents_spf_annexes.sql` | Only for the production database (created with the former 010-013): working file link, frozen approved versions, annexes of the Satellite Project File. A new database needs only 010 and 011 |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.

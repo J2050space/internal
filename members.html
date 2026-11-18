@@ -34,8 +34,8 @@
     import { initProtectedPage, friendlyError, showMessage } from './js/auth.js';
     import { formatDate, formatDateTime } from './js/format.js';
 
-    const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THM', 'TTC', 'OUT', 'MGT'];
-    const TEAM_NAMES = { SYS: 'Systems', ELE: 'Electronics', SFW: 'Software', AOCS: 'AOCS', THM: 'Thermal-mechanical', TTC: 'Telecommunications', OUT: 'Outreach', MGT: 'Management' };
+    const TEAMS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THS', 'TTC', 'OUT', 'MGT'];
+    const TEAM_NAMES = { SYS: 'Systems', ELE: 'Electronics', SFW: 'Software', AOCS: 'AOCS', THS: 'Thermostructure', TTC: 'Telecommunications', OUT: 'Outreach', MGT: 'Management' };
     const ROLES = [['user', 'User'], ['teamleader', 'Teamleader'], ['admin', 'Admin']];
 
     const me = await initProtectedPage('members', { adminOnly: true });

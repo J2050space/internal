@@ -13,9 +13,9 @@ import { icon } from './icons.js';
 
 /* ---------- constants ---------- */
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DEPTS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THM', 'TTC', 'OUT', 'MGT'];
+const DEPTS = ['SYS', 'ELE', 'SFW', 'AOCS', 'THS', 'TTC', 'OUT', 'MGT'];
 const DEPT_NAMES = {
-  SYS: 'Systems', ELE: 'Electronics', SFW: 'Software', AOCS: 'AOCS', THM: 'Thermal-mechanical',
+  SYS: 'Systems', ELE: 'Electronics', SFW: 'Software', AOCS: 'AOCS', THS: 'Thermostructure',
   TTC: 'Telecommunications', OUT: 'Outreach', MGT: 'Management',
 };
 const STATUS = {
@@ -103,6 +103,8 @@ let DEPS = [];
 let EVENTS = [];
 let PEOPLE = new Map();       // profile id -> { name, role, status }
 let DEPT_LEADERS = new Map(); // department -> leader id
+let MILESTONES = [];          // reviews (documents page), ordered
+let DELIVERABLES = [];        // documents required at a milestone and produced by a task
 let ALL = [];                 // derived, ordered
 const ui = {
   view: 'gantt', dept: 'All', deptView: 'SYS', q: '', hideDone: false, confirmDel: null,
@@ -119,15 +121,30 @@ mobileQuery.addEventListener('change', (e) => {
 });
 
 async function load() {
-  const [t, d, ev, pr, tl] = await Promise.all([
+  const [t, d, ev, pr, tl, ms, rq, dc, dv] = await Promise.all([
     supabase.from('tasks').select('*'),
     supabase.from('task_dependencies').select('task_id, depends_on'),
     supabase.from('timeline_events').select('*'),
     supabase.from('profiles').select('id, full_name, email, role, status'),
     supabase.from('team_leaders').select('team, leader_id'),
+    supabase.from('milestones').select('*'),
+    supabase.from('document_requirements').select('id, milestone_id, document_id, level, task_id, version_id, waived').not('task_id', 'is', null),
+    supabase.from('documents').select('id, subteam, doc_type, title, name'),
+    supabase.from('document_versions').select('id, version'),
   ]);
-  const error = t.error || d.error || ev.error || pr.error || tl.error;
+  const error = t.error || d.error || ev.error || pr.error || tl.error || ms.error || rq.error || dc.error || dv.error;
   if (error) throw error;
+  MILESTONES = ms.data.sort((a, b) => a.sort_order - b.sort_order || a.code.localeCompare(b.code));
+  const msById = new Map(MILESTONES.map((m) => [m.id, m]));
+  const docById = new Map(dc.data.map((x) => [x.id, x]));
+  const verById = new Map(dv.data.map((x) => [x.id, x.version]));
+  DELIVERABLES = rq.data.map((r) => ({
+    ...r,
+    milestone: msById.get(r.milestone_id),
+    doc: docById.get(r.document_id),
+    version: r.version_id != null ? verById.get(r.version_id) : null,
+  })).filter((r) => r.milestone && r.doc)
+    .sort((a, b) => a.milestone.sort_order - b.milestone.sort_order);
   PEOPLE = new Map(pr.data.map((p) => [p.id, { name: p.full_name ?? p.email, role: p.role, status: p.status }]));
   DEPT_LEADERS = new Map(tl.data.map((x) => [x.team, x.leader_id]));
   ROWS = t.data;
@@ -258,8 +275,8 @@ function stats(ts) {
     item('Blocked', leaves.filter((t) => t.blocked && !t.completed_on).length, true) +
     item('At risk', count((t) => t.atRisk), true) +
     item('Open without leader', noLeader, true);
-  ts.filter((t) => t.milestone_label).sort((a, b) => (a.end_date < b.end_date ? -1 : 1)).forEach((m) => {
-    h += `<li>Days to ${esc(m.milestone_label.toLowerCase())}<b>${dn(m.deadline ?? m.end_date) - TN}</b></li>`;
+  MILESTONES.filter((m) => !m.held_on && m.review_date && m.review_date >= TODAY).slice(0, 2).forEach((m) => {
+    h += `<li>Days to ${esc(m.code)}<b>${dn(m.review_date) - TN}</b></li>`;
   });
   document.getElementById('stats').innerHTML = h;
 }
@@ -305,6 +322,8 @@ function gantt(all) {
   const byId = new Map(all.map((t) => [t.id, t]));
   const allDays = [TN, ...EVENTS.map((e) => dn(e.event_date))];
   all.forEach((t) => { allDays.push(dn(t.start_date), dn(t.end_date)); if (t.deadline) allDays.push(dn(t.deadline)); });
+  const msDate = (m) => m.held_on ?? m.review_date;
+  MILESTONES.filter(msDate).forEach((m) => allDays.push(dn(msDate(m))));
   const d0 = new Date(Math.min(...allDays) * 864e5);
   const d1 = new Date(Math.max(...allDays) * 864e5);
   const RS = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), 1) / 864e5;
@@ -328,9 +347,11 @@ function gantt(all) {
   const lines = [];
   refs += `<span class="ref today" style="left:${x(TN) + PX / 2}px">today</span>`;
   lines.push([x(TN) + PX / 2, 'var(--accent)', '']);
-  all.filter((t) => t.milestone_label).forEach((m) => {
-    const px = x(dn(m.deadline ?? m.end_date)) + PX / 2;
-    refs += `<span class="ref mile" style="left:${px}px">${esc(m.milestone_label)}</span>`;
+  // Reviews (documents page): line at the review date, data package due date in the tooltip
+  MILESTONES.filter(msDate).forEach((m) => {
+    const px = x(dn(msDate(m))) + PX / 2;
+    const tip = `${m.code} – ${m.name}\n${m.held_on ? `Held ${formatDate(m.held_on)}` : `Review ${formatDate(m.review_date)}`}${m.docs_due ? `\nData package due ${formatDate(m.docs_due)}` : ''}`;
+    refs += `<span class="ref mile" style="left:${px}px" title="${esc(tip)}">${esc(m.code)}</span>`;
     lines.push([px, 'var(--text)', '4 3']);
   });
   EVENTS.forEach((ev) => {
@@ -395,7 +416,11 @@ function gantt(all) {
     arrows + '</svg>';
 
   ui.ganttStart = RS;
-  return toolbar(true) + legend() +
+  const undated = MILESTONES.filter((m) => !msDate(m)).map((m) => m.code);
+  const msHint = undated.length
+    ? `<p class="hint">Not shown, no review date: ${esc(undated.join(', '))}. ${ADMIN ? 'Set the date in <a href="documents.html#milestones">Documents › Milestones</a> (click the milestone code).' : 'An admin sets it in Documents › Milestones.'}</p>`
+    : '';
+  return toolbar(true) + legend() + msHint +
     `<div class="gwrap${ui.edit && ADMIN && !COARSE ? ' editing' : ''}" id="gw"><div class="ginner" style="--lw:${lw}px;--wk:${7 * PX}px;--off:${((1 - new Date(RS * 864e5).getUTCDay() + 7) % 7) * PX}px">
       <div class="grow hdr" style="height:${HH}px"><div class="glabel">Task</div><div class="track" style="width:${W}px">${months}${ticks}${refs}</div></div>
       ${rows}${svg}</div></div>
@@ -500,15 +525,35 @@ async function eventWrite(query, message) {
   await reload(error ? undefined : message);
 }
 
+/* ---------- deliverables (documents page) ---------- */
+const deliverablesOf = (taskId) => DELIVERABLES.filter((r) => r.task_id === taskId);
+const docName = (d) => `${d.subteam}_${d.doc_type}_${d.title}`;
+const LEVEL_NAMES = { draft: 'draft', release: 'release', update: 'update', ad_hoc: 'ad hoc' };
+
+function deliverablesHtml(t) {
+  const list = deliverablesOf(t.id);
+  if (!list.length) return '<p class="hint">None. Deliverables are linked to tasks in Documents → Milestones.</p>';
+  return `<ul class="ed-children">${list.map((r) => {
+    const due = r.milestone.docs_due ?? r.milestone.review_date;
+    const end = t.deadline ?? t.end_date;
+    const state = r.waived ? 'waived' : r.version != null ? `delivered V${String(r.version).padStart(2, '0')}`
+      : due ? `due ${formatDate(due)}` : 'date to set';
+    const late = !r.waived && r.version == null && due && !t.completed_on && end > due;
+    return `<li><a href="documents.html#doc=${r.doc.id}"><span class="code">${esc(docName(r.doc))}</span></a>
+      <span class="hint">${esc(r.milestone.code)} ${LEVEL_NAMES[r.level]} · ${state}${late ? ' · <span class="bad">task ends after the data package is due</span>' : ''}</span></li>`;
+  }).join('')}</ul>`;
+}
+
 /* ---------- CSV ---------- */
 function exportCsv() {
   const rows = [['Code', 'Parent', 'Activity', 'Department', 'Involved', 'Leader', 'People', 'Status', 'Blocked', 'At risk',
-    'Planned start', 'Planned end', 'Deadline', 'Margin (d)', 'Started', 'Completed', 'Depends on', 'Required by', 'Milestone', 'Note']];
+    'Planned start', 'Planned end', 'Deadline', 'Margin (d)', 'Started', 'Completed', 'Depends on', 'Required by', 'Deliverables', 'Note']];
   ALL.forEach((t) => rows.push([t.code, t.parentCode ?? '', t.name, t.department, t.teams.filter((k) => k !== t.department).join(' '),
     t.leaderName, t.people ?? '', STATUS[t.status], t.blocked ? t.blocked_reason : '', t.atRisk ? 'yes' : '',
     formatDate(t.start_date), formatDate(t.end_date), t.deadline ? formatDate(t.deadline) : '', t.margin ?? '',
     t.started_on ? formatDate(t.started_on) : '', t.completed_on ? formatDate(t.completed_on) : '',
-    t.dependsOn.join(' '), t.requiredBy.join(' '), t.milestone_label ?? '', t.note ?? '']));
+    t.dependsOn.join(' '), t.requiredBy.join(' '),
+    deliverablesOf(t.id).map((r) => `${docName(r.doc)} (${r.milestone.code})`).join(' '), t.note ?? '']));
   const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
   download(`gantt_${TODAY}.csv`, `﻿${csv}`, 'text/csv');
 }
@@ -556,7 +601,7 @@ function openEditor(id, preset = {}) {
   const v = t ? { ...t } : {
     department: '', name: '', parent_id: null, start_date: TODAY, end_date: iso(TN + 6), deadline: null,
     started_on: null, completed_on: null, blocked: false, blocked_reason: '', leader_id: null, people: '', note: '',
-    teams: [], milestone_label: '', ...preset,
+    teams: [], ...preset,
   };
   const parent = v.parent_id ? ALL.find((x) => x.id === v.parent_id) : null;
   const children = t ? ALL.filter((x) => x.parent_id === t.id) : [];
@@ -594,8 +639,7 @@ function openEditor(id, preset = {}) {
         <div class="span2"><label for="ed-people">People involved</label><input id="ed-people" maxlength="200" placeholder="Names, recruits, …" value="${esc(v.people ?? '')}"${dis}></div>
         <div class="span3"><span class="lbl">Other departments involved</span><div class="ed-teams">${DEPTS.map((k) =>
           `<label class="pk"><input type="checkbox" name="ed-team" value="${k}"${v.teams.includes(k) ? ' checked' : ''}${dis}> ${k}</label>`).join('')}</div></div>
-        <div><label for="ed-milestone">Milestone label</label><input id="ed-milestone" maxlength="40" placeholder="none" value="${esc(v.milestone_label ?? '')}"${dis}></div>
-        <div class="span2"><label for="ed-note">Note</label><input id="ed-note" maxlength="500" value="${esc(v.note ?? '')}"${dis}></div>
+        <div class="span3"><label for="ed-note">Note</label><input id="ed-note" maxlength="500" value="${esc(v.note ?? '')}"${dis}></div>
       </div>
 
       <h3>Progress</h3>
@@ -622,6 +666,8 @@ function openEditor(id, preset = {}) {
         ${children.length ? `<ul class="ed-children">${children.map((c) => `<li><a href="#" data-goto="${c.id}"><span class="code">${esc(c.code)}</span> ${esc(c.name)}</a>
           <span class="hint">${formatDate(c.start_date)} – ${formatDate(c.end_date)} · ${STATUS[c.status]}${c.blocked ? ' · blocked' : ''}</span></li>`).join('')}</ul>` : '<p class="hint">None.</p>'}
         ${ro ? '' : `<button type="button" class="secondary btn-with-icon" data-ed="add-sub">${icon('plus')} Add subtask</button>`}` : ''}
+
+      ${t ? `<h3>Deliverables</h3>${deliverablesHtml(t)}` : ''}
 
       ${t ? '<details class="ed-hist" id="ed-hist"><summary>Change history</summary><div id="ed-hist-body"><p class="hint">Loading…</p></div></details>' : ''}
 
@@ -825,7 +871,6 @@ function openEditor(id, preset = {}) {
       people: $('#ed-people').value.trim() || null,
       note: $('#ed-note').value.trim() || null,
       teams: DEPTS.filter((k) => box.querySelector(`input[name="ed-team"][value="${k}"]`).checked),
-      milestone_label: $('#ed-milestone').value.trim() || null,
     };
     const focus = (sel, text) => { msg(text); $(sel)?.focus(); };
     if (!fields.department) return focus('#ed-dept', 'Select the department.');
@@ -1062,9 +1107,11 @@ document.addEventListener('click', async (e) => {
 
 function route() {
   const h = (location.hash || '').slice(1);
-  ui.view = VIEWS.some(([k]) => k === h) ? h : 'gantt';
+  const task = /^task=(\d+)$/.exec(h);   // link from the documents page
+  ui.view = VIEWS.some(([k]) => k === h) ? h : task ? ui.view : 'gantt';
   ui.confirmDel = null;
   render();
+  if (task) openEditor(Number(task[1]));
 }
 window.addEventListener('hashchange', route);
 
