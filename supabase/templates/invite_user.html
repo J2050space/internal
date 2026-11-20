@@ -1,0 +1,20 @@
+<!--
+  Supabase > Authentication > Emails > Templates > "Invite user"
+  Subject: You have been invited to J2050 Team Management
+  Paste the content below this comment into the message body (HTML).
+  Sent when an account is created from Supabase > Authentication > Users > Invite
+  (the site itself uses self-registration). {{ .ConfirmationURL }} accepts the
+  invitation and logs the person in.
+-->
+<div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; color: #1f1f1f;">
+  <p>You have been invited to J2050 Team Management, the internal tool of the J2050 team, with the address {{ .Email }}.</p>
+  <p>Accept the invitation:<br>
+    <a href="{{ .ConfirmationURL }}">Accept the invitation</a></p>
+  <p>Then enter your name and choose a password in Account. Your account is active when an admin approves it:
+    you receive an e-mail when it is.</p>
+  <p>If you do not expect this invitation, ignore this e-mail.</p>
+  <p style="color: #6b6b6b;">--<br>
+    J2050 Team Management<br>
+    <a href="https://j2050space.github.io/internal/" style="color: #6b6b6b;">https://j2050space.github.io/internal/</a><br>
+    Automatic message: do not reply.</p>
+</div>

@@ -138,7 +138,10 @@ An admin who does not receive a summary still gets the notices about their own t
 The note of the admin who approves a shift request is in the requester's calendar invitation.
 
 Confirmation of the registration and password reset e-mails are sent by Supabase Auth (Authentication > Emails),
-through the same Gmail account.
+through the same Gmail account. All the Supabase Auth templates (confirm signup, invite user, magic link, change e-mail
+address, reset password, reauthentication), in the same style as the notifications, are in `supabase/templates/`:
+the comment at the top of each file gives the subject; the body is pasted into Authentication > Emails > Templates
+(the dashboard is the copy in use).
 
 Each mail is sent once: scheduled notices are recorded in `notification_log`; events are queued in
 `notification_queue` by database triggers and removed when sent (an event that fails 5 times stays there with its error).

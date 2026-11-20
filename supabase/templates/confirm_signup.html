@@ -1,0 +1,18 @@
+<!--
+  Supabase > Authentication > Emails > Templates > "Confirm signup"
+  Subject: Confirm your e-mail address
+  Paste the content below this comment into the message body (HTML).
+  {{ .ConfirmationURL }} confirms the address and opens the login page of the site.
+-->
+<div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; color: #1f1f1f;">
+  <p>You have registered to J2050 Team Management with the address {{ .Email }}.</p>
+  <p>Confirm your e-mail address:<br>
+    <a href="{{ .ConfirmationURL }}">Confirm my e-mail address</a></p>
+  <p>Then log in, enter your name and wait for the approval of an admin:
+    you receive an e-mail when your account is active.</p>
+  <p>If you did not register, ignore this e-mail.</p>
+  <p style="color: #6b6b6b;">--<br>
+    J2050 Team Management<br>
+    <a href="https://j2050space.github.io/internal/" style="color: #6b6b6b;">https://j2050space.github.io/internal/</a><br>
+    Automatic message: do not reply.</p>
+</div>
