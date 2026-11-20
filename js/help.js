@@ -88,10 +88,17 @@ const PAGES = {
         <li>In a shift: <b>Edit</b> (times, task, capacity; lowering the capacity asks which participants to remove),
           <b>Join as supervisor…</b>, <b>Add supervisor…</b>, ✕ next to a booking to remove it, <b>Delete shift</b>.</li>
         <li>Remove participants who did not come, also after the shift: Stats counts the booked hours.</li>
-        <li>Requests: <b>Approve…</b> (you can adjust hours, task and capacity) or <b>Reject</b> with a reason.</li>
+        <li><b>Add supervisor…</b> lists all the admins: choosing one already booked changes their hours (e.g. extend
+          them to cover slots without supervisor).
+          It works also after the shift, to record who supervised: to replace a supervisor,
+          add the right one, then remove the wrong booking with ✕.</li>
+        <li>Requests: <b>Approve…</b> (you can adjust hours, task and capacity) or <b>Reject</b> with a reason.
+          A request can be approved also after its start, to record the hours of a member who came to the lab
+          but was not approved in time.</li>
       </ul>
       <h3>Rules</h3>
-      <p>Monday to Friday, 08:30–18:30, start and end on :00 or :30, start in the future.</p>`,
+      <p>Monday to Friday, 08:30–18:30, start and end on :00 or :30, start in the future
+        (except when an admin approves a request after its start).</p>`,
   },
 
   gantt: {
@@ -228,6 +235,9 @@ const PAGES = {
       <ul>
         <li><b>Profile</b>: your first and last name as shown to the team. The email cannot be changed.</li>
         <li><b>Change password</b>: at least 12 characters, typed twice.</li>
+        <li>${ADMIN} <b>E-mails for admins</b>: tick the notices for admins you want to receive, so that each admin
+          follows only their own area (e.g. lab or Gantt). Under each notice: who receives it now. A notice nobody
+          ticks is sent to all the admins. E-mails about your own shifts, tasks and documents always arrive.</li>
       </ul>`,
   },
 };

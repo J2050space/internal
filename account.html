@@ -50,6 +50,17 @@
         <p id="password-msg" class="message" role="alert" hidden></p>
       </form>
     </section>
+
+    <section class="card" id="notices-card" hidden>
+      <h2>E-mails for admins</h2>
+      <p class="hint">Choose the notices for admins you receive. E-mails about yourself (your lab hours, your tasks,
+        your documents) always arrive. A notice that no admin receives is sent to all the admins.</p>
+      <form id="notices-form" class="stack" novalidate>
+        <div class="prefs" id="notices-list"></div>
+        <button id="notices-btn" type="submit">Save e-mail choices</button>
+        <p id="notices-msg" class="message" role="alert" hidden></p>
+      </form>
+    </section>
   </main>
 
   <script type="module">
@@ -97,6 +108,76 @@
         if (error) { showMessage(pwMsg, friendlyError(error)); return; }
         event.target.reset();
         showMessage(pwMsg, 'Password changed.', 'success');
+      });
+
+      // E-mails for admins (migration 013): notices each admin chooses to receive
+      if (profile.role === 'admin') await initNotices();
+    }
+
+    async function initNotices() {
+      const NOTICES = [
+        ['registrations', 'New registrations', 'Accounts awaiting approval in Members.'],
+        ['shift_requests', 'Shift requests', 'New requests of lab shifts, to approve or reject.'],
+        ['tasks_overdue', 'Overdue tasks', 'Summary of the tasks whose due date has passed without completion.'],
+        ['doc_review', 'Versions for review', 'Document versions sent for review, to approve or return.'],
+        ['doc_due', 'Documents due', 'Summary 14, 7 and 1 days before the data package of a milestone. The SYS leader always receives it.'],
+      ];
+      const msg = document.getElementById('notices-msg');
+      const list = document.getElementById('notices-list');
+      let admins = [];
+      let prefs = new Map();
+
+      async function load() {
+        const [a, p] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, email').eq('role', 'admin').eq('status', 'active'),
+          supabase.from('notification_prefs').select('user_id, muted'),
+        ]);
+        if (a.error || p.error) { showMessage(msg, friendlyError(a.error || p.error)); return false; }
+        admins = a.data;
+        prefs = new Map(p.data.map((x) => [x.user_id, x.muted ?? []]));
+        return true;
+      }
+
+      // Who receives each notice now (all the admins when nobody wants it)
+      function receivers(key) {
+        const yes = admins.filter((x) => !(prefs.get(x.id) ?? []).includes(key));
+        const names = (yes.length ? yes : admins).map((x) => x.full_name ?? x.email).sort();
+        return `${yes.length ? 'Received by' : 'Nobody chose it, sent to all'}: ${names.join(', ') || 'none'}`;
+      }
+
+      function render() {
+        const mine = prefs.get(profile.id) ?? [];
+        list.replaceChildren(...NOTICES.map(([key, title, text]) => {
+          const label = document.createElement('label');
+          const box = document.createElement('input');
+          box.type = 'checkbox';
+          box.id = `notice-${key}`;
+          box.value = key;
+          box.checked = !mine.includes(key);
+          const name = document.createElement('span');
+          name.textContent = title;
+          const sub = document.createElement('span');
+          sub.className = 'sub';
+          sub.textContent = `${text} ${receivers(key)}.`;
+          label.append(box, name, sub);
+          return label;
+        }));
+      }
+
+      if (!(await load())) return;
+      render();
+      document.getElementById('notices-card').hidden = false;
+
+      document.getElementById('notices-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const muted = [...list.querySelectorAll('input[type="checkbox"]')].filter((b) => !b.checked).map((b) => b.value);
+        const button = document.getElementById('notices-btn');
+        button.disabled = true;
+        const { error } = await supabase.rpc('set_notification_prefs', { p_muted: muted });
+        button.disabled = false;
+        if (error) { showMessage(msg, friendlyError(error)); return; }
+        if (await load()) render();
+        showMessage(msg, 'E-mail choices saved.', 'success');
       });
     }
   </script>
