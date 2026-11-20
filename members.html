@@ -172,6 +172,11 @@
           s.appendChild(o);
         });
         s.addEventListener('change', async () => {
+          const chosen = MEMBERS.find((m) => m.id === s.value);
+          const question = chosen
+            ? `Set ${nameOf(chosen)} as leader of ${team}?\n\nThe new and the former leader receive an e-mail.`
+            : `Remove the leader of ${team}?\n\nThe former leader receives an e-mail.`;
+          if (!window.confirm(question)) { await load(); return; }
           const { error } = s.value
             ? await supabase.from('team_leaders').upsert({ team, leader_id: s.value })
             : await supabase.from('team_leaders').delete().eq('team', team);
