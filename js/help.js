@@ -71,7 +71,8 @@ const PAGES = {
       </ul>
       <h3>Booking a shift</h3>
       <ul>
-        <li>Click a shift, then <b>Book…</b> and choose from / to: you book only the half hours you need.</li>
+        <li>The address of an open shift or request can be shared: it opens the same shift or request.</li>
+        <li>Click a shift, then <b>Book…</b> and choose from / to: you book only the half hours you need (proposed: all the free half hours from the first one).</li>
         <li>A half hour can be booked only if it has a <b>supervisor</b> (an administrator) and a <b>free seat</b>.
           The capacity counts participants per half hour; supervisors are not counted.</li>
         <li>Until your booking starts: <b>Change my hours…</b> or <b>Cancel my booking</b>.</li>
@@ -291,7 +292,7 @@ const FIELDS = {
     'f-notes': 'Other information: what to bring, access, safety…',
     'f-note': {
       'Note to the requester': 'Optional message for the requester, shown with the outcome of the request.',
-      Reason: 'Why the request is rejected. Shown in the list of handled requests.',
+      Reason: 'Required: why the request is rejected. Sent by e-mail to the requester and shown in the list of handled requests.',
     },
   },
 

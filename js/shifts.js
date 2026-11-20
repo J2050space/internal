@@ -359,7 +359,11 @@ function openModal(html) {
   modal.hidden = false;
   return modal.querySelector('.mbox');
 }
-function closeModal() { modal.hidden = true; modal.innerHTML = ''; }
+function closeModal() {
+  modal.hidden = true;
+  modal.innerHTML = '';
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+}
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
 
@@ -391,6 +395,7 @@ function bookingList(s) {
 function openShift(id) {
   const s = SHIFTS.find((x) => x.id === id);
   if (!s) return;
+  history.replaceState(null, '', `#shift=${s.id}`);   // address of the shift, to share
   const ownFuture = s.own && Date.parse(s.own.starts_at) > Date.now();
   const canBook = !s.own && s.slots.some((sl) => !sl.started && (ADMIN || (sl.covered && sl.free > 0)));
   const box = openModal(`
@@ -475,8 +480,11 @@ function openBookingForm(s, userId) {
     : chooseAdmin && s.slots.some((sl) => sl.started)
       ? { from: choosable[0].t, to: choosable[choosable.length - 1].t + SLOT_MS }   // shift started: whole shift
       : (() => {
+      // From the first usable half hour, as far as the following ones are usable
       const first = choosable.find((sl) => usable(sl, ME)) ?? choosable[0];
-      return { from: first.t, to: first.t + SLOT_MS };
+      let end = first.t + SLOT_MS;
+      choosable.forEach((sl) => { if (sl.t === end && usable(sl, ME)) end += SLOT_MS; });
+      return { from: first.t, to: end };
     })();
 
   const fromOpts = choosable.map((sl) => `<option value="${sl.t}"${sl.t === init.from ? ' selected' : ''}>${sl.label}</option>`).join('');
@@ -576,6 +584,7 @@ function openBookingForm(s, userId) {
 function openRequest(id) {
   const r = REQUESTS.find((x) => x.id === id);
   if (!r) return;
+  history.replaceState(null, '', `#request=${r.id}`);
   const box = openModal(`
     <h2>Shift request</h2>
     <p class="meta">${DAYS[weekday(r.date)] ?? ''} ${formatDate(r.starts_at)}, ${formatTime(r.starts_at)}–${formatTime(r.ends_at)}
@@ -833,14 +842,16 @@ function openRejectForm(r) {
     <h2>Reject request</h2>
     <p class="meta">${esc(personName(r.requester))} · ${formatDate(r.starts_at)} ${formatTime(r.starts_at)}–${formatTime(r.ends_at)}</p>
     <form novalidate>
-      <label for="f-note">Reason (shown to the team)</label><input id="f-note" type="text" maxlength="300">
+      <label for="f-note">Reason (required, sent to the requester and shown to the team)</label><input id="f-note" type="text" maxlength="300" required>
       <p class="message" role="alert" hidden></p>
       <div class="buttons"><button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Cancel</button><button type="submit" class="danger btn-with-icon">${icon('x')} Reject</button></div>
     </form>`);
   box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
   box.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const { error } = await supabase.rpc('reject_request', { p_request_id: r.id, p_note: val(box, 'f-note') || null });
+    const note = val(box, 'f-note');
+    if (!note) { modalError(box, 'Give the reason of the rejection.'); box.querySelector('#f-note').focus(); return; }
+    const { error } = await supabase.rpc('reject_request', { p_request_id: r.id, p_note: note });
     if (error) { modalError(box, errorText(error)); return; }
     closeModal();
     await reload('Request rejected.');
@@ -882,11 +893,34 @@ document.getElementById('app-main').addEventListener('click', async (e) => {
   }
 });
 
+/* ---------- links to a shift or a request (#shift=ID, #request=ID) ---------- */
+// Moves the calendar to the week of the shift or request; returns what to open.
+async function hashTarget() {
+  const m = /^#(shift|request)=(\d+)$/.exec(location.hash);
+  if (!m) return null;
+  const id = Number(m[2]);
+  const { data, error } = await supabase.from(m[1] === 'shift' ? 'shifts' : 'shift_requests')
+    .select('starts_at').eq('id', id).maybeSingle();
+  if (error || !data) { toast(m[1] === 'shift' ? 'The shift no longer exists.' : 'The request no longer exists.'); return null; }
+  ui.week = Math.floor((dn(mondayOf(zonedParts(data.starts_at).date)) - dn(mondayOf(TODAY))) / 7);
+  return { kind: m[1], id };
+}
+function openTarget(x) {
+  if (!x) return;
+  if (x.kind === 'shift') openShift(x.id); else openRequest(x.id);
+}
+window.addEventListener('hashchange', async () => {
+  const x = await hashTarget();
+  if (x) { await reload(); openTarget(x); }
+});
+
 /* ---------- start ---------- */
 if (profile) {
   try {
+    const target = await hashTarget();
     await load();
     render();
+    openTarget(target);
   } catch (err) {
     document.getElementById('weeks').innerHTML = '';
     toast(errorText(err));
