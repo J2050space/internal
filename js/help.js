@@ -226,6 +226,9 @@ const PAGES = {
       <ul>
         <li><b>Profile</b>: your first and last name as shown to the team. The email cannot be changed.</li>
         <li><b>Change password</b>: at least 12 characters, typed twice.</li>
+        <li>${ADMIN} <b>E-mails for admins</b>: tick the notices for admins you want to receive, so that each admin
+          follows only their own area (e.g. lab or Gantt). Under each notice: who receives it now. A notice nobody
+          ticks is sent to all the admins. E-mails about your own shifts, tasks and documents always arrive.</li>
       </ul>`,
   },
 };

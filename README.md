@@ -10,7 +10,7 @@ Site: <https://j2050space.github.io/internal/> (login required).
 |---|---|---|
 | Web pages (HTML, CSS, JavaScript) | GitHub Pages, repository `J2050space/internal` | Static files of this repository; no build step |
 | Database, authentication | Supabase project "J2050 Team Management" (EU region) | PostgreSQL with Row Level Security; e-mail and password login |
-| Notification service | Supabase Edge Function `notify`, run every minute by `pg_cron` | Calendar invitations, reminders, task and registration notices |
+| Notification service | Supabase Edge Function `notify`, run every minute by `pg_cron` | Calendar invitations, reminders; notices on accounts, shift requests, tasks and documents |
 | E-mail sending | Gmail account `j2050space@gmail.com` (SMTP, app password) | Authentication e-mails and notifications |
 
 All rules (permissions, capacity, overlaps, supervision, codes, dates) are enforced in the database.
@@ -84,6 +84,7 @@ Each script runs as a single transaction.
 | `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
 | `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D and environmental testing DRDs, of the Satellite Project File DRD and of the former SharePoint tracker, required level per milestone |
 | `012_documents_spf_annexes.sql` | Only for the production database (created with the former 010-013): working file link, frozen approved versions, annexes of the Satellite Project File. A new database needs only 010 and 011 |
+| `013_notification_events.sql` | Queue of the events notified by e-mail (accounts, department leaders, shift requests, document reviews and responsibles), filled by triggers |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.
@@ -108,6 +109,41 @@ Edge Function secrets (Supabase > Edge Functions > Secrets): `SMTP_USER`, `SMTP_
 
 Code: `supabase/functions/notify/index.ts`. Deployed manually in Supabase > Edge Functions, with JWT verification disabled
 (access protected by `NOTIFY_SECRET`). Activation steps and useful commands are in `db/006_schedule_notify.sql`.
+The code contains only ASCII characters (`–` for the dash), so that copying it into the dashboard editor cannot
+alter it. To copy it in Windows PowerShell: `Get-Content -Raw -Encoding UTF8 <file> | Set-Clipboard`.
+
+E-mails sent (sender `j2050space@gmail.com`, plain text). The person who caused an event never receives its e-mail.
+
+| Area | When | To |
+|---|---|---|
+| Lab shifts | Booking created, changed or cancelled; shift changed or deleted (calendar invitation `.ics`) | The person booked |
+| Lab shifts | 1 hour before the own booked hours | The person booked |
+| Lab shifts | New shift request | Admins |
+| Lab shifts | Shift request rejected, with the reason | The requester |
+| Accounts | Registration confirmed and awaiting approval | Admins |
+| Accounts | Account approved, rejected, disabled, re-enabled; role changed | The member |
+| Accounts | Leader of a department named, changed or removed | New and former leader |
+| Gantt | Tasks assigned as leader, or taken away: once a day from 07:00, net changes of the day before | New and former leader |
+| Gantt | Task due in 7 days and tomorrow (deadline, or planned end), from 07:00 | Task leader |
+| Gantt | Day after the due date, task not completed (due dates of the last 7 days) | Task leader and admins |
+| Documents | Version sent for review | Admins |
+| Documents | Version approved, or returned with a note | Responsible and submitter |
+| Documents | Responsible of a document set | The new responsible |
+| Documents | 14, 7 and 1 days before the data package of a milestone (or its review), required documents not yet sent to ESA | Responsible; summary to admins and SYS leader |
+
+Notices for admins (new registrations, shift requests, overdue tasks, versions for review, documents due) go to the
+admins who ticked them in `account.html` > E-mails for admins (default: all). A notice nobody ticks goes to all the admins.
+An admin who does not receive a summary still gets the notices about their own tasks and documents.
+The note of the admin who approves a shift request is in the requester's calendar invitation.
+
+Confirmation of the registration and password reset e-mails are sent by Supabase Auth (Authentication > Emails),
+through the same Gmail account.
+
+Each mail is sent once: scheduled notices are recorded in `notification_log`; events are queued in
+`notification_queue` by database triggers and removed when sent (an event that fails 5 times stays there with its error).
+
+Calendar invitations and event notices wait until the shift or the object has had no change for 5 minutes, then only
+the net change is sent: a mistake corrected within 5 minutes sends nothing, and A -> B -> A sends nothing.
 
 ## Operations
 

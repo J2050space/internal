@@ -316,6 +316,12 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 
 /* ---------- Layout helpers ---------- */
 .stack { display: grid; gap: 10px; max-width: 420px; }
+
+/* E-mail preferences of the admins (account page) */
+.prefs { display: grid; gap: 12px; }
+.prefs label { display: grid; grid-template-columns: auto 1fr; column-gap: 9px; align-items: start; }
+.prefs input { margin-top: 2px; }
+.prefs .sub { grid-column: 2; color: var(--muted); font-size: 0.78125rem; font-weight: 400; line-height: 1.5; }
 .hint {
   max-width: 78ch;
   margin: 0 0 20px;
