@@ -3,9 +3,10 @@
 // document_requirements, milestones, document_history.
 // File names follow the J2050 Documentation Manual: [SUBTEAM]_[TYPE]_[Title]_VXX.
 // Rights (enforced by the database):
-//   new document: admins and teamleaders (a teamleader becomes the responsible);
-//   document and versions: the responsible and admins; approval: admins;
-//   milestones and requirements: admins.
+//   document managers = admins and the leader of the SYS sub-team (team_leaders);
+//   new document: document managers and teamleaders (a teamleader becomes the responsible);
+//   document, versions and requirements: the responsible and document managers;
+//   responsible, deletion and milestones: document managers; approval: admins.
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, formatDateTime, todayIso } from './format.js';
@@ -62,7 +63,7 @@ function toast(message) {
 }
 
 const ERRORS = {
-  'Not authorized': 'Operation not allowed: only the responsible of the document and the administrators can do it.',
+  'Not authorized': 'Operation not allowed: only the responsible of the document, the Systems leader and the administrators can do it.',
   'Responsible shall be an active teamleader or admin': 'The responsible shall be an active member with role teamleader or admin.',
   'File name cannot be changed after a release': 'Subteam, type and title cannot change after the first approved version.',
   'Document modified by someone else': 'The document has been modified by someone else in the meantime: reload and repeat the change.',
@@ -106,7 +107,8 @@ function errorText(error) {
 const profile = await initProtectedPage('documents');
 const ME = profile?.id;
 const ADMIN = profile?.role === 'admin';
-const CAN_CREATE = ADMIN || profile?.role === 'teamleader';
+let MANAGER = ADMIN;       // admin or leader of SYS (set by load)
+let CAN_CREATE = ADMIN || profile?.role === 'teamleader';
 let DOCS = [];
 let VERS = new Map();      // document id -> versions, last first
 let VBYID = new Map();
@@ -121,17 +123,20 @@ const ui = {
 };
 
 async function load() {
-  const [d, v, r, m, t, p] = await Promise.all([
+  const [d, v, r, m, t, p, l] = await Promise.all([
     supabase.from('documents').select('*'),
     supabase.from('document_versions').select('*'),
     supabase.from('document_requirements').select('*'),
     supabase.from('milestones').select('*'),
     supabase.from('tasks').select('id, code, name, start_date, end_date, deadline, completed_on'),
     supabase.from('profiles').select('id, full_name, email, role, status'),
+    supabase.from('team_leaders').select('team, leader_id'),
   ]);
-  const error = d.error || v.error || r.error || m.error || t.error || p.error;
+  const error = d.error || v.error || r.error || m.error || t.error || p.error || l.error;
   if (error) throw error;
   PEOPLE = new Map(p.data.map((x) => [x.id, { name: x.full_name ?? x.email, role: x.role, status: x.status }]));
+  MANAGER = ADMIN || (l.data.some((x) => x.team === 'SYS' && x.leader_id === ME) && validLeader(ME));
+  CAN_CREATE = MANAGER || profile?.role === 'teamleader';
   TASKS = new Map(t.data.map((x) => [x.id, x]));
   MILES = m.data.sort((a, b) => a.sort_order - b.sort_order || a.code.localeCompare(b.code));
   MBYID = new Map(MILES.map((x) => [x.id, x]));
@@ -167,7 +172,7 @@ const baseName = (d) => `${d.subteam}_${d.doc_type}_${d.title}`;
 const versionsOf = (d) => VERS.get(d.id) ?? [];
 const lastVersion = (d) => versionsOf(d)[0] ?? null;
 const docStatus = (d) => lastVersion(d)?.status ?? 'none';
-const canEdit = (d) => ADMIN || d.responsible_id === ME;
+const canEdit = (d) => MANAGER || d.responsible_id === ME;
 const inWork = (v) => v && (v.status === 'in_progress' || v.status === 'in_review');
 // Last released version (approved or sent to ESA): its PDF is the current issue
 const releasedOf = (d) => versionsOf(d).find((v) => !inWork(v)) ?? null;
@@ -319,7 +324,7 @@ function registerTable() {
 /* ----- Milestones matrix ----- */
 function viewMilestones() {
   return toolsHtml(`<label class="chk"><input id="f-gaps" type="checkbox"${ui.gaps ? ' checked' : ''}> Only problems</label>
-      ${ADMIN ? '<button id="new-ms" type="button" class="secondary">New milestone</button>' : ''}`) +
+      ${MANAGER ? '<button id="new-ms" type="button" class="secondary">New milestone</button>' : ''}`) +
     `<ul class="legend">
       ${Object.entries(LEVELS).map(([, [s, l]]) => `<li><b>${s}</b> ${l}</li>`).join('')}
       ${['done', 'changes', 'late', 'soon', 'open', 'waived'].map((k) => `<li><span class="sw rq-${k}"></span>${RSTATE[k]}</li>`).join('')}
@@ -330,7 +335,7 @@ function viewMilestones() {
 function milestoneHead(m) {
   const due = dueOf(m);
   const cls = m.held_on ? 'held' : due && due < TODAY ? 'bad' : '';
-  return `<th class="ms ${cls}"${ADMIN ? ` data-ms="${m.id}" tabindex="0" title="Edit milestone"` : ''}>
+  return `<th class="ms ${cls}"${MANAGER ? ` data-ms="${m.id}" tabindex="0" title="Edit milestone"` : ''}>
     <span class="code">${esc(m.code)}</span>${m.phase ? ` <small>${esc(m.phase)}</small>` : ''}
     <span class="req">${m.docs_due ? `Docs ${formatDate(m.docs_due)}` : 'Docs: date to set'}</span>
     <span class="req">${m.held_on ? `Held ${formatDate(m.held_on)}` : m.review_date ? `Review ${formatDate(m.review_date)}` : ''}</span>
@@ -345,7 +350,7 @@ function matrixTable() {
       <th class="dn" data-open="${d.id}" tabindex="0"><span class="mono">${esc(baseName(d))}</span><span class="req">${esc(d.esa_code ?? '')} ${esc(nameOf(d.responsible_id))}</span></th>
       ${MILES.map((m) => {
         const r = byKey.get(`${d.id}:${m.id}`);
-        if (!r) return ADMIN ? `<td class="cell"><button type="button" class="rq add" data-add="${d.id}:${m.id}" title="Require at ${esc(m.code)}">+</button></td>` : '<td class="cell"></td>';
+        if (!r) return canEdit(d) ? `<td class="cell"><button type="button" class="rq add" data-add="${d.id}:${m.id}" title="Require at ${esc(m.code)}">+</button></td>` : '<td class="cell"></td>';
         const st = reqState(r);
         const risk = reqRisk(r);
         const v = r.version_id ? VBYID.get(r.version_id) : null;
@@ -429,7 +434,7 @@ function openDoc(id) {
   const dis = edit ? '' : ' disabled';
   const locked = d && versionsOf(d).some((v) => !inWork(v));
   const v = d ?? { subteam: 'SYS', doc_type: 'DREP', title: '', name: '', subteams: [], priority: null, on_hold: false };
-  const respField = ADMIN
+  const respField = MANAGER
     ? `<select id="e-resp"><option value="">— none —</option>${eligibleLeaders().map(([pid, p]) =>
       `<option value="${pid}"${v.responsible_id === pid ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>`
     : `<input value="${esc(d ? nameOf(d.responsible_id) || 'none' : 'You')}" disabled>`;
@@ -459,7 +464,7 @@ function openDoc(id) {
     </div>
     <div class="buttons">
       ${edit ? `<button type="button" id="e-save">${d ? 'Save' : 'Create'}</button>` : ''}
-      ${d && ADMIN ? '<button type="button" class="danger" id="e-del">Delete document</button>' : ''}
+      ${d && MANAGER ? '<button type="button" class="danger" id="e-del">Delete document</button>' : ''}
       <span class="spacer"></span><button type="button" class="secondary" data-close>Close</button>
     </div>`;
   if (d) html += versionsHtml(d) + requirementsHtml(d) + `<details class="ed-hist" id="e-hist"><summary>History</summary><ul class="hist"><li>Loading…</li></ul></details>`;
@@ -485,7 +490,7 @@ async function copy(text) {
 async function saveDoc(d) {
   const fields = {
     subteam: $('#e-sub').value, doc_type: $('#e-type').value, title: val('e-title'), name: val('e-name'),
-    esa_code: val('e-esa'), responsible_id: ADMIN ? $('#e-resp').value : (d?.responsible_id ?? ''),
+    esa_code: val('e-esa'), responsible_id: MANAGER ? $('#e-resp').value : (d?.responsible_id ?? ''),
     priority: $('#e-prio').value, folder_url: val('e-folder'), working_url: val('e-work'), people: val('e-people'),
     subteams: [...document.querySelectorAll('input[name="e-subs"]:checked')].map((x) => x.value),
     on_hold: $('#e-hold').checked, on_hold_reason: val('e-hold-reason'), note: val('e-note'),
@@ -634,11 +639,11 @@ function requirementsHtml(d) {
         ${dueOf(m) ? ` · due ${formatDate(dueOf(m))}` : ''}
         ${t ? ` · task <a href="gantt.html#task=${t.id}" class="mono">${esc(t.code)}</a>` : ''}${risk ? ` <span class="bad">${esc(risk)}</span>` : ''}
         ${r.waived ? `<span class="req">Waived: ${esc(r.waived_reason)}</span>` : ''}${r.note ? `<span class="req">${esc(r.note)}</span>` : ''}</span>
-      ${ADMIN ? `<button type="button" class="link" data-req="${r.id}">Edit</button>` : ''}</li>`;
+      ${canEdit(d) ? `<button type="button" class="link" data-req="${r.id}">Edit</button>` : ''}</li>`;
   }).join('');
   return `<h3>Required at milestones</h3>
     ${rs.length ? `<ul class="ed-children">${items}</ul>` : '<p class="hint">Not required at any milestone.</p>'}
-    ${ADMIN ? `<button type="button" class="secondary act" data-add="${d.id}:">Add milestone</button>` : ''}`;
+    ${canEdit(d) ? `<button type="button" class="secondary act" data-add="${d.id}:">Add milestone</button>` : ''}`;
 }
 
 async function loadHistory(d) {
@@ -656,32 +661,34 @@ async function loadHistory(d) {
   }).join('') : '<li>No changes recorded.</li>';
 }
 
-/* ----- Requirement editor (admins) ----- */
+/* ----- Requirement editor (responsible and document managers; read-only for the others) ----- */
 function openRequirement(id, preset = {}) {
   const r = id ? REQS.find((x) => x.id === id) : { document_id: preset.doc ?? null, milestone_id: preset.ms ?? null, level: 'release', waived: false };
   if (!r) { toast('The requirement no longer exists.'); return; }
   const d = r.document_id ? DOCS.find((x) => x.id === r.document_id) : null;
   const sent = d ? versionsOf(d).filter((v) => SENT.includes(v.status)) : [];
   const tasks = [...TASKS.values()].sort((a, b) => a.code.localeCompare(b.code, 'en', { numeric: true }));
+  const edit = d ? canEdit(d) : MANAGER;
+  const dis = edit ? '' : ' disabled';
   const html = `<h2>${id ? 'Requirement' : 'New requirement'}</h2>
     <p class="meta">Document required at a milestone. The task of the Gantt that produces it is optional but shows whether the milestone is covered.</p>
     <div class="ed-grid">
-      <div class="span3"><label for="q-doc">Document</label><select id="q-doc"${id ? ' disabled' : ''}>${d ? '' : '<option value="">—</option>'}${DOCS.map((x) =>
+      <div class="span3"><label for="q-doc">Document</label><select id="q-doc"${id ? ' disabled' : dis}>${d ? '' : '<option value="">—</option>'}${DOCS.filter((x) => x.id === r.document_id || canEdit(x)).map((x) =>
         `<option value="${x.id}"${x.id === r.document_id ? ' selected' : ''}>${esc(baseName(x))}</option>`).join('')}</select></div>
-      <div><label for="q-ms">Milestone</label><select id="q-ms"${id ? ' disabled' : ''}>${r.milestone_id ? '' : '<option value="">—</option>'}${MILES.map((m) =>
+      <div><label for="q-ms">Milestone</label><select id="q-ms"${id ? ' disabled' : dis}>${r.milestone_id ? '' : '<option value="">—</option>'}${MILES.map((m) =>
         `<option value="${m.id}"${m.id === r.milestone_id ? ' selected' : ''}>${esc(m.code)}</option>`).join('')}</select></div>
-      <div><label for="q-level">Level</label><select id="q-level">${Object.entries(LEVELS).map(([k, [s, l]]) =>
+      <div><label for="q-level">Level</label><select id="q-level"${dis}>${Object.entries(LEVELS).map(([k, [s, l]]) =>
         `<option value="${k}"${r.level === k ? ' selected' : ''}>${s} ${l}</option>`).join('')}</select></div>
-      <div><label for="q-ver">Fulfilled by</label><select id="q-ver"${id ? '' : ' disabled'}><option value="">— not delivered —</option>${sent.map((v) =>
+      <div><label for="q-ver">Fulfilled by</label><select id="q-ver"${id ? dis : ' disabled'}><option value="">— not delivered —</option>${sent.map((v) =>
         `<option value="${v.id}"${v.id === r.version_id ? ' selected' : ''}>${vv(v.version)} (${esc(VSTATUS[v.status])})</option>`).join('')}</select></div>
-      <div class="span3"><label for="q-task">Task of the Gantt producing it</label><select id="q-task"><option value="">— none —</option>${tasks.map((t) =>
+      <div class="span3"><label for="q-task">Task of the Gantt producing it</label><select id="q-task"${dis}><option value="">— none —</option>${tasks.map((t) =>
         `<option value="${t.id}"${t.id === r.task_id ? ' selected' : ''}>${esc(t.code)} – ${esc(t.name)} (end ${formatDate(t.deadline ?? t.end_date)})</option>`).join('')}</select></div>
-      <div class="span3"><label class="pk chk"><input id="q-waived" type="checkbox"${r.waived ? ' checked' : ''}> Waived (not required any more, or delivered before this tool)</label>
-        <input id="q-waived-reason" placeholder="Reason" value="${esc(r.waived_reason ?? '')}"${r.waived ? '' : ' hidden'}></div>
-      <div class="span3"><label for="q-note">Expected content</label><textarea id="q-note" rows="2">${esc(r.note ?? '')}</textarea></div>
+      <div class="span3"><label class="pk chk"><input id="q-waived" type="checkbox"${r.waived ? ' checked' : ''}${dis}> Waived (not required any more, or delivered before this tool)</label>
+        <input id="q-waived-reason" placeholder="Reason" value="${esc(r.waived_reason ?? '')}"${dis}${r.waived ? '' : ' hidden'}></div>
+      <div class="span3"><label for="q-note">Expected content</label><textarea id="q-note" rows="2"${dis}>${esc(r.note ?? '')}</textarea></div>
     </div>
-    <div class="buttons"><button type="button" id="q-save">Save</button>
-      ${id ? '<button type="button" class="danger" id="q-del">Remove</button>' : ''}
+    <div class="buttons">${edit ? '<button type="button" id="q-save">Save</button>' : ''}
+      ${id && edit ? '<button type="button" class="danger" id="q-del">Remove</button>' : ''}
       <span class="spacer"></span>
       ${d ? '<button type="button" class="secondary" id="q-doc-open">Open document</button>' : ''}
       <button type="button" class="secondary" data-close>Close</button></div>`;
@@ -694,7 +701,7 @@ function openRequirement(id, preset = {}) {
     const res = await run(supabase.from('document_requirements').delete().eq('id', id), 'Requirement removed.');
     if (res.ok) closeModal();
   });
-  m.querySelector('#q-save').addEventListener('click', async () => {
+  m.querySelector('#q-save')?.addEventListener('click', async () => {
     const waived = $('#q-waived').checked;
     const row = {
       level: $('#q-level').value,
@@ -715,7 +722,7 @@ function openRequirement(id, preset = {}) {
   });
 }
 
-/* ----- Milestone editor (admins) ----- */
+/* ----- Milestone editor (document managers) ----- */
 function openMilestone(id) {
   const m = id ? MBYID.get(id) : { code: '', name: '', sort_order: (MILES.at(-1)?.sort_order ?? 0) + 10 };
   const n = id ? REQS.filter((r) => r.milestone_id === id).length : 0;

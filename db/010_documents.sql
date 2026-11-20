@@ -3,7 +3,11 @@
 -- Scope: document register, review milestones, documents required per
 -- milestone.
 --   * milestones: project reviews (data package due date, review date,
---     date held). Edited by admins. They replace tasks.milestone_label.
+--     date held). Edited by document managers. They replace
+--     tasks.milestone_label.
+--   * Document managers: admins and the leader of the SYS sub-team
+--     (team_leaders). They create, edit and delete every document, change
+--     the responsible, edit milestones and required documents.
 --   * documents: one row per document, named according to the J2050
 --     Documentation Manual: [SUBTEAM]_[TYPE]_[Title]_VXX
 --     Single responsible (active teamleader or admin), other subteams and
@@ -11,8 +15,9 @@
 --   * document_versions: V00, V01, ... with their workflow
 --       in_progress -> in_review -> approved -> sent -> esa_accepted
 --                      (returned by an admin)        \-> esa_changes
---     The responsible changes the status; only admins approve. Admins can
---     do everything, but an approved version is frozen (its PDF stays as
+--     The responsible (or a document manager) changes the status; only
+--     admins approve. Admins can do everything, but an approved version is
+--     frozen (its PDF stays as
 --     approved; only ESA link and comments are added): changes go in the
 --     next version, or an admin resets it. "Old version" is derived.
 --     The document links the SharePoint folder and the working file
@@ -80,6 +85,16 @@ language sql immutable as $$
   where p_new -> k is distinct from p_old -> k;
 $$;
 
+-- Document manager: admin, or leader of the SYS sub-team
+create function private.is_doc_manager() returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_admin()
+      or exists (select 1 from team_leaders tl
+                   join profiles p on p.id = tl.leader_id
+                  where tl.team = 'SYS' and tl.leader_id = auth.uid()
+                    and p.status = 'active' and p.role in ('teamleader', 'admin'));
+$$;
+
 -- ---------------------------------------------------------------------
 -- 2. Milestones (reviews)
 -- ---------------------------------------------------------------------
@@ -98,8 +113,8 @@ create table public.milestones (
 
 alter table public.milestones enable row level security;
 create policy read_milestones  on public.milestones for select to authenticated using (public.is_active());
-create policy admin_milestones on public.milestones for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+create policy manage_milestones on public.milestones for all to authenticated
+  using (private.is_doc_manager()) with check (private.is_doc_manager());
 
 -- ---------------------------------------------------------------------
 -- 3. Documents
@@ -178,11 +193,21 @@ create policy read_documents on public.documents for select to authenticated usi
 create policy read_doc_versions on public.document_versions for select to authenticated using (public.is_active());
 create policy read_doc_requirements on public.document_requirements for select to authenticated using (public.is_active());
 
+-- Document manager, or responsible of the document
+create function private.can_edit_document(p_document_id bigint) returns boolean
+language sql stable security definer set search_path = public as $$
+  select private.is_doc_manager()
+      or (public.is_active() and exists (select 1 from documents
+                                         where id = p_document_id and responsible_id = auth.uid()));
+$$;
+
 -- Documents and versions are written only through the functions below;
--- admins may delete a document directly. Requirements: admins.
-create policy admin_delete_documents on public.documents for delete to authenticated using (public.is_admin());
-create policy admin_doc_requirements on public.document_requirements for all to authenticated
-  using (public.is_admin()) with check (public.is_admin());
+-- document managers may delete a document directly. Requirements:
+-- document managers, and the responsible for its own documents.
+create policy manage_delete_documents on public.documents for delete to authenticated
+  using (private.is_doc_manager());
+create policy edit_doc_requirements on public.document_requirements for all to authenticated
+  using (private.can_edit_document(document_id)) with check (private.can_edit_document(document_id));
 
 -- ---------------------------------------------------------------------
 -- 4. Consistency triggers
@@ -327,27 +352,19 @@ create trigger document_requirements_history after insert or update or delete on
 -- ---------------------------------------------------------------------
 -- 6. Functions used by the site
 -- ---------------------------------------------------------------------
--- Admin, or responsible of the document
-create function private.can_edit_document(p_document_id bigint) returns boolean
-language sql stable security definer set search_path = public as $$
-  select public.is_admin()
-      or (public.is_active() and exists (select 1 from documents
-                                         where id = p_document_id and responsible_id = auth.uid()));
-$$;
-
 -- Save a document (new or existing).
 --   p_fields: subteam, doc_type, title, name, esa_code, subteams, responsible_id,
 --             people, priority, on_hold, on_hold_reason, folder_url, working_url, note
---   New documents: admins and teamleaders; a teamleader becomes the
---   responsible. Existing documents: admins and the responsible; only
---   admins change the responsible.
+--   New documents: document managers and teamleaders; a teamleader becomes
+--   the responsible. Existing documents: document managers and the
+--   responsible; only document managers change the responsible.
 create function public.doc_save(p_id bigint, p_fields jsonb, p_expected timestamptz default null)
 returns bigint
 language plpgsql security definer set search_path = public as $$
 declare
   v_id       bigint := p_id;
   v_role     text;
-  v_admin    boolean := public.is_admin();
+  v_manager  boolean := private.is_doc_manager();
   v_current  timestamptz;
   v_resp     uuid := nullif(p_fields ->> 'responsible_id', '')::uuid;
   v_hold     boolean := coalesce((p_fields ->> 'on_hold')::boolean, false);
@@ -357,8 +374,8 @@ begin
   select role into v_role from profiles where id = auth.uid();
 
   if v_id is null then
-    if not v_admin and v_role <> 'teamleader' then raise exception 'Not authorized'; end if;
-    if not v_admin then v_resp := auth.uid(); end if;
+    if not v_manager and v_role <> 'teamleader' then raise exception 'Not authorized'; end if;
+    if not v_manager then v_resp := auth.uid(); end if;
     insert into documents (subteam, doc_type, title, name, esa_code, subteams, responsible_id, people,
                            priority, on_hold, on_hold_reason, folder_url, working_url, note)
     values (p_fields ->> 'subteam', p_fields ->> 'doc_type', trim(p_fields ->> 'title'),
@@ -385,7 +402,7 @@ begin
     name           = trim(p_fields ->> 'name'),
     esa_code       = nullif(trim(p_fields ->> 'esa_code'), ''),
     subteams       = v_subteams,
-    responsible_id = case when v_admin then v_resp else responsible_id end,
+    responsible_id = case when v_manager then v_resp else responsible_id end,
     people         = nullif(trim(p_fields ->> 'people'), ''),
     priority       = nullif(p_fields ->> 'priority', ''),
     on_hold        = v_hold,
@@ -438,8 +455,8 @@ end $$;
 --   edit        file_url (PDF), change_note (in progress, in review);
 --               esa_url, esa_comments (after sending). An approved version is
 --               frozen, also for admins: changes go in the next version.
---   submit      in_progress -> in_review                 responsible, admin
---   withdraw    in_review   -> in_progress               responsible, admin
+--   submit      in_progress -> in_review                 responsible, document manager
+--   withdraw    in_review   -> in_progress               responsible, document manager
 --   approve     in_review   -> approved                  admin
 --   return      in_review   -> in_progress, review_note  admin
 --   send        approved    -> sent; sent_on, esa_url, requirements (ids
@@ -645,6 +662,10 @@ grant usage on all sequences in schema public to authenticated;
 revoke all on function private.jsonb_diff(jsonb, jsonb)       from public;
 revoke all on function private.doc_file_name(bigint)          from public;
 revoke all on function private.can_edit_document(bigint)      from public;
+revoke all on function private.is_doc_manager()               from public;
+-- Used by Row Level Security
+grant execute on function private.can_edit_document(bigint)   to authenticated;
+grant execute on function private.is_doc_manager()            to authenticated;
 
 revoke execute on function public.doc_save(bigint, jsonb, timestamptz)       from public, anon;
 grant  execute on function public.doc_save(bigint, jsonb, timestamptz)       to authenticated;

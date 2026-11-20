@@ -418,7 +418,7 @@ function gantt(all) {
   ui.ganttStart = RS;
   const undated = MILESTONES.filter((m) => !msDate(m)).map((m) => m.code);
   const msHint = undated.length
-    ? `<p class="hint">Not shown, no review date: ${esc(undated.join(', '))}. ${ADMIN ? 'Set the date in <a href="documents.html#milestones">Documents › Milestones</a> (click the milestone code).' : 'An admin sets it in Documents › Milestones.'}</p>`
+    ? `<p class="hint">Not shown, no review date: ${esc(undated.join(', '))}. ${ADMIN ? 'Set the date in <a href="documents.html#milestones">Documents › Milestones</a> (click the milestone code).' : 'An admin or the Systems leader sets it in Documents › Milestones.'}</p>`
     : '';
   return toolbar(true) + legend() + msHint +
     `<div class="gwrap${ui.edit && ADMIN && !COARSE ? ' editing' : ''}" id="gw"><div class="ginner" style="--lw:${lw}px;--wk:${7 * PX}px;--off:${((1 - new Date(RS * 864e5).getUTCDay() + 7) % 7) * PX}px">
