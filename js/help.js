@@ -172,7 +172,7 @@ const PAGES = {
           <i>Only problems</i> keeps the documents with late, close or uncovered deliveries.</li>
         <li><b>Review</b>: versions waiting for approval, approved versions to send to ESA, ESA changes required, deliveries late or due within 21 days.</li>
         <li>Counters at the top: documents, versions to approve, late deliveries, days to the next data package.</li>
-        <li>Filters: search (name, ESA code, responsible), subteam (also involved), status, <i>My documents</i> (you are responsible).</li>
+        <li>Filters: search (name, ESA code, responsible), subteam (also involved), status, <i>My documents</i> (you are responsible). The filters are remembered in this browser; the view is in the address (e.g. <span class="mono">documents.html#milestones</span>).</li>
       </ul>
       <h3>Versions</h3>
       <ol>
@@ -180,7 +180,7 @@ const PAGES = {
           Then <b>Start V01</b>, V02, …: version <i>In progress</i>. You work on the <b>working file</b> (Word, Excel) linked in the document.</li>
         <li>Export the PDF of the version and <b>Submit for review</b> with its link (required): the reviewer checks that PDF. <i>Withdraw</i> brings it back in progress.</li>
         <li>An administrator <b>Approves</b> it, or <b>Returns</b> it with what has to be changed.</li>
-        <li><b>Sent to ESA</b>: date, link to the copy on the ESA SharePoint, and the milestones this version fulfils.</li>
+        <li><b>Mark as sent to ESA</b>: date, link to the copy on the ESA SharePoint, and the milestones this version fulfils.</li>
         <li><b>ESA outcome</b>: <i>Accepted by ESA</i>, or <i>Changes required</i> with the ESA comments, to address in the next version.</li>
       </ol>
       <p>An <b>approved</b> version is frozen, also for administrators: its PDF stays as approved. Only the ESA link and comments can still be added. Changes go in the next version: after approving V02, rename the working file to V03 in place (the link stays valid) and start V03. An administrator can <i>Reset</i> a version (recorded in the history) to correct an error.</p>

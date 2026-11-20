@@ -119,7 +119,12 @@ let TASKS = new Map();
 let PEOPLE = new Map();
 const ui = {
   view: VIEWS.some(([k]) => k === stored('docs-view', 'register')) ? stored('docs-view', 'register') : 'register',
-  q: '', sub: 'All', status: 'All', mine: false, gaps: false,
+  // Filters remembered in this browser
+  q: '',
+  sub: ['All', ...SUBTEAMS].includes(stored('docs-sub', 'All')) ? stored('docs-sub', 'All') : 'All',
+  status: ['All', ...Object.keys(VSTATUS), 'on_hold'].includes(stored('docs-status', 'All')) ? stored('docs-status', 'All') : 'All',
+  mine: stored('docs-mine', false) === true,
+  gaps: stored('docs-gaps', false) === true,
 };
 
 async function load() {
@@ -215,7 +220,7 @@ const nextReq = (d) => reqsOf(d).find(isOpen) ?? null;
 /* ---------- rendering ---------- */
 function renderNav() {
   $('#d-nav').innerHTML = VIEWS.map(([k, label]) =>
-    `<a href="#" data-view="${k}"${ui.view === k ? ' aria-current="page"' : ''}>${label}</a>`).join('');
+    `<a href="#${k}"${ui.view === k ? ' aria-current="page"' : ''}>${label}</a>`).join('');
 }
 
 function renderStats() {
@@ -278,10 +283,10 @@ function toolsHtml(extra) {
 function bindTools() {
   const on = (id, ev, fn) => $(`#${id}`)?.addEventListener(ev, fn);
   on('f-q', 'input', (e) => { ui.q = e.target.value; fillList(); });
-  on('f-sub', 'change', (e) => { ui.sub = e.target.value; fillList(); });
-  on('f-status', 'change', (e) => { ui.status = e.target.value; fillList(); });
-  on('f-mine', 'change', (e) => { ui.mine = e.target.checked; fillList(); });
-  on('f-gaps', 'change', (e) => { ui.gaps = e.target.checked; fillList(); });
+  on('f-sub', 'change', (e) => { ui.sub = e.target.value; store('docs-sub', ui.sub); fillList(); });
+  on('f-status', 'change', (e) => { ui.status = e.target.value; store('docs-status', ui.status); fillList(); });
+  on('f-mine', 'change', (e) => { ui.mine = e.target.checked; store('docs-mine', ui.mine); fillList(); });
+  on('f-gaps', 'change', (e) => { ui.gaps = e.target.checked; store('docs-gaps', ui.gaps); fillList(); });
   on('new-doc', 'click', () => openDoc(null));
   on('new-ms', 'click', () => openMilestone(null));
 }
@@ -410,17 +415,35 @@ function showModal(html, wide = true) {
   const m = modal();
   m.innerHTML = `<div class="mbox${wide ? ' wide' : ''}" role="dialog" aria-modal="true">${html}</div>`;
   m.hidden = false;
+  m.dirty = false;
   m.querySelector('input, select, textarea, button')?.focus();
 }
 function closeModal() {
   modal().hidden = true;
   modal().innerHTML = '';
-  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  modal().dirty = false;
+  history.replaceState(null, '', `#${ui.view}`);
+}
+// Close asked by the user (Close, Esc, click outside): confirm when something was typed
+function requestClose() {
+  if (modal().dirty && !confirm('Discard the unsaved changes?')) return false;
+  closeModal();
+  return true;
+}
+// Error shown in the dialog, next to the buttons that caused it (toast if there is no place)
+function showError(text, where) {
+  const el = where ? modal().querySelector(where) : null;
+  if (!el) { toast(text); return; }
+  el.textContent = text;
+  el.className = 'message error';
+  el.hidden = false;
+  el.scrollIntoView({ block: 'nearest' });
 }
 
-async function run(promise, okMessage) {
+async function run(promise, okMessage, where) {
   const { data, error } = await promise;
-  if (error) { toast(errorText(error)); return { ok: false }; }
+  if (error) { showError(errorText(error), where); return { ok: false }; }
+  modal().dirty = false;
   await reload(okMessage);
   return { ok: true, data };
 }
@@ -462,10 +485,11 @@ function openDoc(id) {
       <div class="span3"><label for="e-note">Note</label><textarea id="e-note" rows="2"${dis}>${esc(v.note ?? '')}</textarea></div>
       ${locked && edit ? '<p class="span3 hint">Subteam, type and title are fixed after the first approved version.</p>' : ''}
     </div>
+    <p class="message" id="d-msg" role="alert" hidden></p>
     <div class="buttons">
-      ${edit ? `<button type="button" id="e-save">${d ? 'Save' : 'Create'}</button>` : ''}
       ${d && MANAGER ? '<button type="button" class="danger" id="e-del">Delete document</button>' : ''}
       <span class="spacer"></span><button type="button" class="secondary" data-close>Close</button>
+      ${edit ? `<button type="button" id="e-save">${d ? 'Save' : 'Create'}</button>` : ''}
     </div>`;
   if (d) html += versionsHtml(d) + requirementsHtml(d) + `<details class="ed-hist" id="e-hist"><summary>History</summary><ul class="hist"><li>Loading…</li></ul></details>`;
   showModal(html);
@@ -476,7 +500,7 @@ function openDoc(id) {
   m.querySelector('#e-save')?.addEventListener('click', () => saveDoc(d));
   m.querySelector('#e-del')?.addEventListener('click', async () => {
     if (!confirm(`Delete ${baseName(d)} with all its versions and requirements? This cannot be undone.`)) return;
-    const r = await run(supabase.from('documents').delete().eq('id', d.id), 'Document deleted.');
+    const r = await run(supabase.from('documents').delete().eq('id', d.id), 'Document deleted.', '#d-msg');
     if (r.ok) closeModal();
   });
   if (d) bindVersions(d);
@@ -495,9 +519,9 @@ async function saveDoc(d) {
     subteams: [...document.querySelectorAll('input[name="e-subs"]:checked')].map((x) => x.value),
     on_hold: $('#e-hold').checked, on_hold_reason: val('e-hold-reason'), note: val('e-note'),
   };
-  if (!fields.title || !fields.name) { toast('Give title and full name.'); return; }
+  if (!fields.title || !fields.name) { showError('Give title and full name.', '#d-msg'); return; }
   const r = await run(supabase.rpc('doc_save', { p_id: d?.id ?? null, p_fields: fields, p_expected: d?.updated_at ?? null }),
-    d ? 'Document saved.' : 'Document created.');
+    d ? 'Document saved.' : 'Document created.', '#d-msg');
   if (r.ok) openDoc(r.data);
 }
 
@@ -535,8 +559,8 @@ function versionActions(v, isLast) {
       a.push(['withdraw', 'Withdraw']);
       if (ADMIN) a.push(['approve', 'Approve', 'primary'], ['return', 'Return']);
       break;
-    case 'approved': a.push(['send', 'Sent to ESA', 'primary']); break;
-    default: a.push(['esa', 'ESA outcome']);
+    case 'approved': a.push(['send', 'Mark as sent to ESA…', 'primary']); break;
+    default: a.push(['esa', 'ESA outcome…']);
   }
   if (ADMIN && v.status !== 'in_progress' && v.status !== 'in_review') a.push(['reset', 'Reset']);
   if (isLast && v.status === 'in_progress') a.push(['delete', 'Delete', 'danger']);
@@ -585,10 +609,12 @@ function versionPanel(d, v, action) {
     body = `<p>${confirmOnly[action]}</p>`;
   }
   const buttons = action === 'esa'
-    ? `<button type="button" data-go="esa_accept">Accepted by ESA</button><button type="button" class="secondary" data-go="esa_changes">Changes required</button><button type="button" class="secondary" data-go="edit">Save links and comments</button>`
+    ? `<button type="button" class="secondary" data-go="edit">Save links and comments</button><button type="button" class="secondary" data-go="esa_changes">Changes required</button><button type="button" data-go="esa_accept">Accepted by ESA</button>`
     : `<button type="button" data-go="${action}">Confirm</button>`;
-  p.innerHTML = `<div class="card vpanel"><h3>${esc(name)}</h3>${body}<div class="buttons">${buttons}<button type="button" class="secondary" data-cancel>Cancel</button></div></div>`;
+  p.innerHTML = `<div class="card vpanel"><h3>${esc(name)}</h3>${body}<p class="message" id="vp-msg" role="alert" hidden></p>
+    <div class="buttons"><span class="spacer"></span><button type="button" class="secondary" data-cancel>Cancel</button>${buttons}</div></div>`;
   p.querySelector('[data-cancel]').addEventListener('click', () => { p.innerHTML = ''; });
+  p.scrollIntoView({ block: 'nearest' });
   p.querySelector('#p-num')?.addEventListener('input', (e) => {
     const n = Number(e.target.value);
     if (Number.isInteger(n) && n >= 0 && n <= 99) p.querySelector('h3').textContent = `${baseName(d)}_${vv(n)}`;
@@ -603,7 +629,7 @@ async function doVersionAction(d, v, action) {
     const args = { p_document_id: d.id, p_file_url: val('p-file') || null, p_change_note: val('p-change') || null };
     if ($('#p-num')) {
       const n = Number(val('p-num'));
-      if (!Number.isInteger(n) || n < 0 || n > 99) { toast('The version number shall be between 0 and 99.'); return; }
+      if (!Number.isInteger(n) || n < 0 || n > 99) { showError('The version number shall be between 0 and 99.', '#vp-msg'); return; }
       args.p_version = n;
     }
     call = supabase.rpc('doc_new_version', args);
@@ -622,7 +648,7 @@ async function doVersionAction(d, v, action) {
   const done = { new: 'Version started.', submit: 'Submitted for review.', approve: 'Version approved.', return: 'Version returned to the responsible.',
     send: 'Version marked as sent to ESA.', esa_accept: 'Marked as accepted by ESA.', esa_changes: 'ESA changes recorded.',
     reset: 'Version back in progress.', delete: 'Version deleted.', withdraw: 'Version withdrawn.', edit: 'Version saved.' };
-  const r = await run(call, done[action]);
+  const r = await run(call, done[action], '#vp-msg');
   if (r.ok) openDoc(d.id);
 }
 
@@ -687,18 +713,22 @@ function openRequirement(id, preset = {}) {
         <input id="q-waived-reason" placeholder="Reason" value="${esc(r.waived_reason ?? '')}"${dis}${r.waived ? '' : ' hidden'}></div>
       <div class="span3"><label for="q-note">Expected content</label><textarea id="q-note" rows="2"${dis}>${esc(r.note ?? '')}</textarea></div>
     </div>
-    <div class="buttons">${edit ? '<button type="button" id="q-save">Save</button>' : ''}
-      ${id && edit ? '<button type="button" class="danger" id="q-del">Remove</button>' : ''}
+    <p class="message" id="d-msg" role="alert" hidden></p>
+    <div class="buttons">${id && edit ? '<button type="button" class="danger" id="q-del">Remove</button>' : ''}
       <span class="spacer"></span>
       ${d ? '<button type="button" class="secondary" id="q-doc-open">Open document</button>' : ''}
-      <button type="button" class="secondary" data-close>Close</button></div>`;
+      <button type="button" class="secondary" data-close>Close</button>
+      ${edit ? '<button type="button" id="q-save">Save</button>' : ''}</div>`;
   showModal(html, false);
   const m = modal();
   m.querySelector('#q-waived').addEventListener('change', (e) => { $('#q-waived-reason').hidden = !e.target.checked; });
-  m.querySelector('#q-doc-open')?.addEventListener('click', () => openDoc(d.id));
+  m.querySelector('#q-doc-open')?.addEventListener('click', () => {
+    if (m.dirty && !confirm('Discard the unsaved changes?')) return;
+    openDoc(d.id);
+  });
   m.querySelector('#q-del')?.addEventListener('click', async () => {
     if (!confirm('Remove the document from this milestone?')) return;
-    const res = await run(supabase.from('document_requirements').delete().eq('id', id), 'Requirement removed.');
+    const res = await run(supabase.from('document_requirements').delete().eq('id', id), 'Requirement removed.', '#d-msg');
     if (res.ok) closeModal();
   });
   m.querySelector('#q-save')?.addEventListener('click', async () => {
@@ -714,10 +744,10 @@ function openRequirement(id, preset = {}) {
       row.version_id = $('#q-ver').value ? Number($('#q-ver').value) : null;
       call = supabase.from('document_requirements').update(row).eq('id', id);
     } else {
-      if (!$('#q-doc').value || !$('#q-ms').value) { toast('Select document and milestone.'); return; }
+      if (!$('#q-doc').value || !$('#q-ms').value) { showError('Select document and milestone.', '#d-msg'); return; }
       call = supabase.from('document_requirements').insert({ ...row, document_id: Number($('#q-doc').value), milestone_id: Number($('#q-ms').value) });
     }
-    const res = await run(call, 'Requirement saved.');
+    const res = await run(call, 'Requirement saved.', '#d-msg');
     if (res.ok) closeModal();
   });
 }
@@ -739,9 +769,10 @@ function openMilestone(id) {
       <div><label for="m-held">Held on</label><input id="m-held" type="date" max="${TODAY}" value="${m.held_on ?? ''}"></div>
       <div class="span3"><label for="m-note">Note</label><textarea id="m-note" rows="3">${esc(m.note ?? '')}</textarea></div>
     </div>
-    <div class="buttons"><button type="button" id="m-save">Save</button>
-      ${id ? `<button type="button" class="danger" id="m-del">Delete</button>` : ''}
-      <span class="spacer"></span><button type="button" class="secondary" data-close>Close</button></div>`;
+    <p class="message" id="d-msg" role="alert" hidden></p>
+    <div class="buttons">${id ? `<button type="button" class="danger" id="m-del">Delete</button>` : ''}
+      <span class="spacer"></span><button type="button" class="secondary" data-close>Close</button>
+      <button type="button" id="m-save">Save</button></div>`;
   showModal(html, false);
   const box = modal();
   box.querySelector('#m-save').addEventListener('click', async () => {
@@ -751,26 +782,23 @@ function openMilestone(id) {
       held_on: val('m-held') || null, note: val('m-note') || null,
     };
     const call = id ? supabase.from('milestones').update(row).eq('id', id) : supabase.from('milestones').insert(row);
-    const res = await run(call, 'Milestone saved.');
+    const res = await run(call, 'Milestone saved.', '#d-msg');
     if (res.ok) closeModal();
   });
   box.querySelector('#m-del')?.addEventListener('click', async () => {
     if (!confirm(`Delete ${m.code}${n ? ` and its ${n} required documents` : ''}? The documents themselves are kept.`)) return;
-    const res = await run(supabase.from('milestones').delete().eq('id', id), 'Milestone deleted.');
+    const res = await run(supabase.from('milestones').delete().eq('id', id), 'Milestone deleted.', '#d-msg');
     if (res.ok) closeModal();
   });
 }
 
 /* ---------- events ---------- */
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-view], [data-open], [data-req], [data-add], [data-ms], [data-close]');
-  if (!t || e.target.closest('a[href]:not([data-view])')) return;
-  if (t.dataset.view) {
-    e.preventDefault();
-    ui.view = t.dataset.view;
-    store('docs-view', ui.view);
-    render();
-  } else if (t.dataset.close !== undefined) closeModal();
+  const t = e.target.closest('[data-open], [data-req], [data-add], [data-ms], [data-close]');
+  if (!t || e.target.closest('a[href]')) return;
+  // Moving to another dialog from an open one: confirm first if something was typed
+  if (t.dataset.close === undefined && !modal().hidden && modal().dirty && !confirm('Discard the unsaved changes?')) return;
+  if (t.dataset.close !== undefined) requestClose();
   else if (t.dataset.req) openRequirement(Number(t.dataset.req));
   else if (t.dataset.add) {
     const [doc, ms] = t.dataset.add.split(':');
@@ -779,23 +807,38 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.open) openDoc(Number(t.dataset.open));
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !modal().hidden) closeModal();
+  if (e.key === 'Escape' && !modal().hidden) requestClose();
   if (e.key === 'Enter' && e.target.matches('[data-open], [data-ms]') && modal().hidden) e.target.click();
 });
-modal().addEventListener('mousedown', (e) => { if (e.target === modal()) closeModal(); });
+modal().addEventListener('mousedown', (e) => { if (e.target === modal()) requestClose(); });
+// Something typed in a dialog: closing it asks for confirmation
+modal().addEventListener('input', () => { modal().dirty = true; });
+modal().addEventListener('change', () => { modal().dirty = true; });
+
+// Address: #register, #milestones, #review (view) or #doc=ID (document)
+function route() {
+  const h = location.hash.slice(1);
+  if (VIEWS.some(([k]) => k === h)) {
+    if (!modal().hidden) {
+      if (modal().dirty && !confirm('Discard the unsaved changes?')) return;
+      modal().hidden = true;
+      modal().innerHTML = '';
+      modal().dirty = false;
+    }
+    ui.view = h;
+    store('docs-view', h);
+  }
+  render();
+  const m = /^doc=(\d+)$/.exec(h);
+  if (m) openDoc(Number(m[1]));
+}
+window.addEventListener('hashchange', route);
 
 /* ---------- start ---------- */
 if (profile) {
   try {
     await load();
-    const view = location.hash.slice(1);
-    if (VIEWS.some(([k]) => k === view)) {
-      ui.view = view;
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-    render();
-    const m = /^#doc=(\d+)$/.exec(location.hash);
-    if (m) openDoc(Number(m[1]));
+    route();
   } catch (err) {
     console.error(err);
     $('#view').innerHTML = `<p class="message error">${esc(errorText(err))}</p>`;
