@@ -117,7 +117,8 @@ const PAGES = {
         (milestones of the Documents page).</p>
       <h3>Toolbar</h3>
       <ul>
-        <li><i>Department</i>: tasks of a department, including those in which it is involved. <i>Search</i>: code, activity, leader, people.</li>
+        <li><i>Department</i>: tasks of a department, including those in which it is involved. <i>Search</i>: code, activity, leader, people.
+          <i>My tasks</i>: tasks you lead and their subtasks. Department, <i>Hide done</i> and <i>My tasks</i> are remembered in this browser.</li>
         <li>− / + zoom; double arrows: expand / collapse all subtasks (or the arrow next to a task); <i>Hide done</i>.</li>
         <li>Download icon: <i>Export CSV</i> of all tasks, for Excel (separator ;). Circular arrow: reads the data again.</li>
       </ul>

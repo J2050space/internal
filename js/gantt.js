@@ -110,7 +110,9 @@ let MILESTONES = [];          // reviews (documents page), ordered
 let DELIVERABLES = [];        // documents required at a milestone and produced by a task
 let ALL = [];                 // derived, ordered
 const ui = {
-  view: 'gantt', dept: 'All', deptView: 'SYS', q: '', hideDone: false, confirmDel: null,
+  // Department, Hide done and My tasks are remembered in this browser
+  view: 'gantt', dept: DEPTS.includes(stored('gantt-dept', 'All')) ? stored('gantt-dept', 'All') : 'All', deptView: 'SYS', q: '', hideDone: stored('gantt-hide-done', false),
+  mine: stored('gantt-mine', false), confirmDel: null,
   edit: false,
   px: ZOOMS.includes(stored('gantt-px', DEFAULT_PX)) ? stored('gantt-px', DEFAULT_PX) : DEFAULT_PX,
   collapsed: new Set(stored('gantt-collapsed', [])),
@@ -236,7 +238,8 @@ function build() {
   // Progress editable by the admins and by the leader of the task or of its parent
   const byIdD = new Map(derived.map((t) => [t.id, t]));
   derived.forEach((t) => {
-    t.canProgress = ADMIN || t.leader === ME || (t.parent_id != null && byIdD.get(t.parent_id)?.leader === ME);
+    t.mine = t.leader === ME || (t.parent_id != null && byIdD.get(t.parent_id)?.leader === ME);
+    t.canProgress = ADMIN || t.mine;
   });
 
   // Order: top-level tasks by planned start, each followed by its subtasks
@@ -251,10 +254,11 @@ function build() {
 
 const deptOf = (t) => [t.department, ...t.teams.filter((k) => k !== t.department)];
 
-function filterTasks(list, dept, q, hideDone) {
+function filterTasks(list, dept, q, hideDone, mine = false) {
   return list.filter((t) => {
     if (dept !== 'All' && !deptOf(t).includes(dept)) return false;
     if (hideDone && t.status === 'done') return false;
+    if (mine && !t.mine) return false;
     if (q) {
       const s = `${t.code} ${t.name} ${t.people ?? ''} ${t.leaderName}`.toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
@@ -304,6 +308,7 @@ function toolbar(gantt) {
   return `<div class="bar-tools">${ADMIN ? `<button type="button" class="btn-with-icon" data-act="new-task">${icon('plus')} New task</button>` : ''}${dept}${ganttTools}
     <input id="q" type="search" placeholder="Search task or person" value="${esc(ui.q)}" aria-label="Search">
     <label class="chk"><input type="checkbox" id="hd"${ui.hideDone ? ' checked' : ''}> Hide done</label>
+    <label class="chk" title="Tasks you lead, and the subtasks of the tasks you lead"><input type="checkbox" id="mine"${ui.mine ? ' checked' : ''}> My tasks</label>
     <button type="button" class="secondary btn-icon" data-act="csv" title="Export CSV" aria-label="Export CSV">${icon('download')}</button>
     <button type="button" class="secondary btn-icon" data-act="reload" title="Reload" aria-label="Reload">${icon('rotate-cw')}</button>
     <span class="mode">${mode}</span>
@@ -320,7 +325,7 @@ function legend() {
 
 /* ---------- Gantt view ---------- */
 function gantt(all) {
-  const ts = filterTasks(all, ui.dept, ui.q, ui.hideDone)
+  const ts = filterTasks(all, ui.dept, ui.q, ui.hideDone, ui.mine)
     .filter((t) => !(t.parent_id && ui.collapsed.has(t.parent_id)));
   if (!all.length) {
     return toolbar(true) + `<div class="gwrap"><div class="empty">No task yet.${ADMIN ? ' Use "New task" to create the first one.' : ''}</div></div>`;
@@ -438,7 +443,7 @@ function gantt(all) {
 
 /* ---------- Table view (read only) ---------- */
 function table(all) {
-  const ts = filterTasks(all, ui.dept, ui.q, ui.hideDone);
+  const ts = filterTasks(all, ui.dept, ui.q, ui.hideDone, ui.mine);
   const row = (t) => `<tr class="r-${t.status}${t.depth ? ' sub' : ''}" data-open="${t.id}" tabindex="0">
     <td><span class="code">${esc(t.code)}</span></td>
     <td>${esc(t.name)}${t.note ? `<span class="req">${esc(t.note)}</span>` : ''}</td>
@@ -1078,8 +1083,9 @@ document.addEventListener('change', async (e) => {
     await eventWrite(supabase.from('timeline_events').update({ [f]: val }).eq('id', Number(el.dataset.ev)));
     return;
   }
-  if (el.id === 'gdept') { ui.dept = el.value; render(); }
-  else if (el.id === 'hd') { ui.hideDone = el.checked; render(); }
+  if (el.id === 'gdept') { ui.dept = el.value; store('gantt-dept', ui.dept); render(); }
+  else if (el.id === 'hd') { ui.hideDone = el.checked; store('gantt-hide-done', ui.hideDone); render(); }
+  else if (el.id === 'mine') { ui.mine = el.checked; store('gantt-mine', ui.mine); render(); }
   else if (el.id === 'edit-mode') { ui.edit = el.checked; render(); }
 });
 
