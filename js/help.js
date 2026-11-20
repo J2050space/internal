@@ -88,7 +88,7 @@ const PAGES = {
         <li>In a shift: <b>Edit</b> (times, task, capacity; lowering the capacity asks which participants to remove),
           <b>Join as supervisor…</b>, <b>Add supervisor…</b>, ✕ next to a booking to remove it, <b>Delete shift</b>.</li>
         <li>Remove participants who did not come, also after the shift: Stats counts the booked hours.</li>
-        <li><b>Add supervisor…</b> lists all the admins: choosing one already booked changes his/her hours (e.g. extend
+        <li><b>Add supervisor…</b> lists all the admins: choosing one already booked changes their hours (e.g. extend
           them to cover slots without supervisor).
           It works also after the shift, to record who supervised: to replace a supervisor,
           add the right one, then remove the wrong booking with ✕.</li>
@@ -187,9 +187,11 @@ const PAGES = {
       </ul>
       <h3>Who does what</h3>
       <ul>
-        <li>Everybody reads everything. The <b>responsible</b> of a document edits it and moves its versions.</li>
-        <li>${LEAD} create documents (they become responsible). ${ADMIN} do everything, and only they approve versions,
-          change the responsible, edit milestones (click the code at the top of a column) and required documents (click a cell, or + on an empty one).</li>
+        <li>Everybody reads everything. The <b>responsible</b> of a document edits it, moves its versions and edits its required milestones (click a cell, or + on an empty one).</li>
+        <li>${LEAD} create documents (they become responsible).</li>
+        <li>The <b>Systems leader</b> (leader of the SYS department, set in Members) and ${ADMIN} create, edit and delete every document,
+          change the responsible and edit milestones (click the code at the top of a column) and required documents.</li>
+        <li>Only ${ADMIN} approve or return versions in review and reset a released version.</li>
         <li><i>History</i> at the bottom of a document: every change, with who and when.</li>
       </ul>`,
   },
@@ -221,7 +223,7 @@ const PAGES = {
       <h3>Roles</h3>
       <ul>
         <li><b>User</b>: books lab shifts and requests them, reads Gantt and documents.</li>
-        <li><b>Teamleader</b>: as user, can also be leader of a department or task and responsible of documents, and creates documents.</li>
+        <li><b>Teamleader</b>: as user, can also be leader of a department or task and responsible of documents, and creates documents. The leader of SYS also manages all documents and the milestones.</li>
         <li><b>Admin</b>: everything, including approvals, Gantt editing, shifts, milestones, Stats and Members.</li>
       </ul>
       <p>You cannot change your own account, and at least one active administrator is always kept.</p>`,
@@ -311,7 +313,7 @@ const FIELDS = {
     'e-title': 'Third block of the file name: 2–5 English words joined, each with a capital initial, no spaces or underscores (e.g. LinkBudget). Fixed after the first approved version.',
     'e-name': 'Full title, as on the cover page of the document.',
     'e-esa': 'Code of the ESA deliverable (e.g. TS-VCD, DDJF). Empty for internal documents.',
-    'e-resp': 'The one person accountable for the document: an active teamleader or admin. With the administrators, the only one who edits it and moves its versions. Only administrators change it.',
+    'e-resp': 'The one person accountable for the document: an active teamleader or admin. With the Systems leader and the administrators, the only one who edits it and moves its versions. Only the Systems leader and the administrators change it.',
     'e-prio': 'Priority for the team. Informative only.',
     'e-folder': 'Link to the SharePoint folder of the document: working file, PDFs of the versions, attachments.',
     'e-work': 'Link to the file you edit (Word, Excel…). One file for all versions: after a release rename it in place to the next version, the link stays valid. Open it with "Edit".',
