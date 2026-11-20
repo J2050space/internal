@@ -114,7 +114,7 @@ export function renderHeader(profile, activePage) {
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
       <a href="gantt.html" data-page="gantt">Project plan</a>
       <a href="documents.html" data-page="documents">Documents</a>
-      <a href="stats.html" data-page="stats" data-admin hidden>Stats</a>
+      <a href="stats.html" data-page="stats">Stats</a>
       <a href="members.html" data-page="members" data-admin hidden>Members</a>
     </nav>
     <div class="user">

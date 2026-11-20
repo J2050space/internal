@@ -200,7 +200,7 @@ const PAGES = {
   stats: {
     title: 'Stats',
     html: `
-      <p>Hours booked in lab shifts already ended: participants and supervisors. Only administrators see this page.</p>
+      <p>Hours booked in lab shifts already ended: participants and supervisors. All the members see this page; your row is highlighted and <b>Your hours</b> gives your total in the period.</p>
       <ul>
         <li><b>From / To</b> or the quick periods (last 30 days, this month, all). <b>Department</b>: tasks of that department or in which it is involved.</li>
         <li><b>By person</b>: hours, of which supervising, number of shifts, main tasks.</li>
@@ -225,7 +225,7 @@ const PAGES = {
       <ul>
         <li><b>User</b>: books lab shifts and requests them, reads Gantt and documents.</li>
         <li><b>Teamleader</b>: as user, can also be leader of a department or task and responsible of documents, and creates documents. The leader of SYS also manages all documents and the milestones.</li>
-        <li><b>Admin</b>: everything, including approvals, Gantt editing, shifts, milestones, Stats and Members.</li>
+        <li><b>Admin</b>: everything, including approvals, Gantt editing, shifts, milestones and Members.</li>
       </ul>
       <p>You cannot change your own account, and at least one active administrator is always kept.</p>`,
   },

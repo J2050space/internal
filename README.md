@@ -25,7 +25,7 @@ The pages only check inputs to give clear messages before sending.
 | `gantt.html` | active members (editing: admins) | Project plan (menu "Project plan"): Gantt, task editor, timeline events, review milestones |
 | `documents.html` | active members (rights below) | Document register, versions and ESA deliveries, documents required per milestone, review queue |
 | `account.html` | active members | Name and password (opened from the name and role at the top right) |
-| `stats.html` | admins | Booked hours of ended shifts, by person and by task |
+| `stats.html` | active members | Booked hours of ended shifts, by person and by task |
 | `members.html` | admins | Approval of registrations, roles, department leaders |
 
 Every page has a "?" button with its guide, and the fields of the forms have a "?" with their meaning.
@@ -86,6 +86,7 @@ Each script runs as a single transaction.
 | `012_documents_systems_leader.sql` | Only for the production database: Systems leader as document manager, responsible edits the required documents of its documents. Already in 010 for a new database |
 | `013_notification_events.sql` | Queue of the events notified by e-mail (accounts, department leaders, shift requests, document reviews and responsibles), filled by triggers |
 | `014_approve_past_requests.sql` | A shift request can be approved also after its start (hours worked, approval forgotten); "Add supervisor" also on past hours |
+| `015_stats_for_members.sql` | Stats open to all the active members: `lab_hours` replaces `admin_hours` |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.
