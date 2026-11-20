@@ -28,6 +28,9 @@ The pages only check inputs to give clear messages before sending.
 | `stats.html` | active members | Booked hours of ended shifts, by person and by task |
 | `members.html` | admins | Approval of registrations, roles, department leaders |
 
+For the admins, the menu shows next to Lab shifts, Documents and Members the number of shift requests, versions in review
+and registrations waiting for them.
+
 Every page has a "?" button with its guide, and the fields of the forms have a "?" with their meaning.
 All texts are in `js/help.js` (`PAGES`: guide of each page; `FIELDS`: help of each field, keyed by the id of the control):
 update them when a page or a field changes.

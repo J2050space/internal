@@ -474,6 +474,21 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 }
 #app-header .user { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 0.8125rem; }
 #app-header #user-name { color: var(--text); font-weight: 500; }
+/* Admins: things waiting for them, next to a menu item */
+#app-header nav .nav-count {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Name and role open the account page */
 #app-header #user-link {
   display: inline-flex;

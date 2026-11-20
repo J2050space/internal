@@ -134,6 +134,32 @@ export function renderHeader(profile, activePage) {
   header.querySelector('#logout-btn').addEventListener('click', signOut);
   mountThemeToggle(header.querySelector('.user'));
   initHelp(activePage);
+  if (profile.role === 'admin') showTodoCounts(header).catch((err) => console.error(err));
+}
+
+// Admins: number of things waiting for them, next to the menu items
+async function showTodoCounts(header) {
+  const [requests, versions, members] = await Promise.all([
+    supabase.from('shift_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('document_versions').select('id', { count: 'exact', head: true }).eq('status', 'in_review'),
+    supabase.rpc('admin_list_members'),
+  ]);
+  const waiting = members.error ? 0 : members.data.filter((m) => m.status === 'pending' && m.email_confirmed).length;
+  const counts = [
+    ['shifts', requests.error ? 0 : requests.count, 'shift requests to approve or reject'],
+    ['documents', versions.error ? 0 : versions.count, 'versions waiting for approval'],
+    ['members', waiting, 'accounts awaiting approval'],
+  ];
+  counts.forEach(([page, n, what]) => {
+    const link = header.querySelector(`nav [data-page="${page}"]`);
+    if (!link || !n) return;
+    const badge = document.createElement('span');
+    badge.className = 'nav-count';
+    badge.textContent = String(n);
+    badge.title = `${n} ${what}`;
+    link.append(' ', badge);
+    link.setAttribute('aria-label', `${link.firstChild.textContent.trim()}, ${n} ${what}`);
+  });
 }
 
 // Start-up sequence of a protected page.

@@ -220,7 +220,8 @@ const PAGES = {
   members: {
     title: 'Members',
     html: `
-      <p>Accounts of the team. Only administrators see this page.</p>
+      <p>Accounts of the team. Only administrators see this page. The number next to <i>Members</i> in the menu: accounts awaiting approval
+        (next to <i>Lab shifts</i>: requests to handle; next to <i>Documents</i>: versions in review).</p>
       <ul>
         <li><b>Awaiting approval</b>: confirmed email and name entered. <i>Approve</i> to let them in, <i>Reject</i> to disable the account.</li>
         <li><b>Department leaders</b>: default leader of the tasks of each department in the Gantt (an active teamleader or admin).</li>
