@@ -1,5 +1,6 @@
 // Project Gantt: views Gantt, Table, Departments, This week, Timeline events.
-// Data in Supabase: tasks, task_dependencies, timeline_events. Editing reserved to admins.
+// Data in Supabase: tasks, task_dependencies, timeline_events. Editing reserved to admins;
+// the leader of a task (or of its parent) updates its progress and note (leader_set_progress).
 // Planning model:
 //   planned start / planned end (the bar), optional deadline (commitment; the gap is the margin),
 //   actual start / completion dates and "blocked" flag (facts) -> derived status.
@@ -77,6 +78,7 @@ const ERRORS = {
   'Task modified by someone else': 'The task has been modified by someone else in the meantime: reload and repeat the change.',
   'Task not found': 'The task no longer exists: reload the page.',
   'Not authorized': 'Operation reserved to administrators.',
+  'Not the task leader': 'Only the leader of the task, the leader of its parent task or an administrator can update its progress.',
   'Dependency would create a cycle': 'This dependency would create a loop between tasks.',
   'Subtasks cannot have subtasks': 'A subtask cannot contain other subtasks.',
   'Actual dates cannot be in the future': 'Start and completion dates cannot be in the future.',
@@ -98,6 +100,7 @@ function errorText(error) {
 /* ---------- state ---------- */
 const profile = await initProtectedPage('gantt');
 const ADMIN = profile?.role === 'admin';
+const ME = profile?.id;
 let ROWS = [];
 let DEPS = [];
 let EVENTS = [];
@@ -230,6 +233,11 @@ function build() {
     t.leaderName = nameOfPerson(t.leader);
     t.invalidOverride = Boolean(t.leader_id && !override);
   });
+  // Progress editable by the admins and by the leader of the task or of its parent
+  const byIdD = new Map(derived.map((t) => [t.id, t]));
+  derived.forEach((t) => {
+    t.canProgress = ADMIN || t.leader === ME || (t.parent_id != null && byIdD.get(t.parent_id)?.leader === ME);
+  });
 
   // Order: top-level tasks by planned start, each followed by its subtasks
   const out = [];
@@ -290,7 +298,7 @@ function toolbar(gantt) {
     <button type="button" class="secondary btn-icon" data-act="expand-all" title="Expand all" aria-label="Expand all">${icon('chevrons-down')}</button>
     <button type="button" class="secondary btn-icon" data-act="collapse-all" title="Collapse all" aria-label="Collapse all">${icon('chevrons-up')}</button>
     ${ADMIN && !COARSE ? `<label class="chk edit-toggle${ui.edit ? ' on' : ''}"><input type="checkbox" id="edit-mode"${ui.edit ? ' checked' : ''}> Edit timeline</label>` : ''}` : '';
-  const mode = !ADMIN ? 'Read only: click a task to see its details.'
+  const mode = !ADMIN ? 'Click a task to see its details. As its leader you can update its progress.'
     : gantt && ui.edit ? 'Edit timeline ON: drag a bar to move it, its ends to change start or end. Esc cancels a drag.'
       : 'Click a task to open it.';
   return `<div class="bar-tools">${ADMIN ? `<button type="button" class="btn-with-icon" data-act="new-task">${icon('plus')} New task</button>` : ''}${dept}${ganttTools}
@@ -598,6 +606,9 @@ function openEditor(id, preset = {}) {
   if (id != null && !t) { toast(ERRORS['Task not found']); return; }
   const ro = !ADMIN;
   const dis = ro ? ' disabled' : '';
+  const lead = ro && Boolean(t?.canProgress);          // leader (not admin): progress and note only
+  const pro = ro && !lead;                              // progress read only
+  const pdis = pro ? ' disabled' : '';
   const v = t ? { ...t } : {
     department: '', name: '', parent_id: null, start_date: TODAY, end_date: iso(TN + 6), deadline: null,
     started_on: null, completed_on: null, blocked: false, blocked_reason: '', leader_id: null, people: '', note: '',
@@ -618,6 +629,7 @@ function openEditor(id, preset = {}) {
   m.dirty = false;
   m.innerHTML = `<div class="mbox wide" role="dialog" aria-modal="true" aria-labelledby="ed-title">
     <h2 id="ed-title">${title}</h2>
+    ${lead ? '<p class="hint">You lead this task: you can update its progress (started, completed, blocked) and its note. The other fields are changed by an admin.</p>' : ''}
     <p class="meta">${t ? `${statusBadge(t)} · last change ${t.updated_at ? new Date(t.updated_at).toLocaleString('en-GB', { timeZone: TIME_ZONE, dateStyle: 'short', timeStyle: 'short' }) : '—'}${t.updated_by ? ` by ${esc(nameOfPerson(t.updated_by))}` : ''}` : 'Fields marked * are required.'}</p>
     <form id="ed-form" novalidate>
       <div class="ed-grid">
@@ -639,17 +651,17 @@ function openEditor(id, preset = {}) {
         <div class="span2"><label for="ed-people">People involved</label><input id="ed-people" maxlength="200" placeholder="Names, recruits, …" value="${esc(v.people ?? '')}"${dis}></div>
         <div class="span3"><span class="lbl">Other departments involved</span><div class="ed-teams">${DEPTS.map((k) =>
           `<label class="pk"><input type="checkbox" name="ed-team" value="${k}"${v.teams.includes(k) ? ' checked' : ''}${dis}> ${k}</label>`).join('')}</div></div>
-        <div class="span3"><label for="ed-note">Note</label><input id="ed-note" maxlength="500" value="${esc(v.note ?? '')}"${dis}></div>
+        <div class="span3"><label for="ed-note">Note</label><input id="ed-note" maxlength="500" value="${esc(v.note ?? '')}"${pdis}></div>
       </div>
 
       <h3>Progress</h3>
       <div class="ed-progress">
-        <label class="pk"><input type="checkbox" id="ed-started"${v.started_on ? ' checked' : ''}${ro || calc ? ' disabled' : ''}> Started</label>
-        <input type="date" id="ed-started-on" max="${TODAY}" value="${esc(v.started_on ?? '')}" aria-label="Start date"${ro || calc || !v.started_on ? ' disabled' : ''}>
-        <label class="pk"><input type="checkbox" id="ed-completed"${v.completed_on ? ' checked' : ''}${ro || calc ? ' disabled' : ''}> Completed</label>
-        <input type="date" id="ed-completed-on" max="${TODAY}" value="${esc(v.completed_on ?? '')}" aria-label="Completion date"${ro || calc || !v.completed_on ? ' disabled' : ''}>
-        ${calc ? '' : `<label class="pk"><input type="checkbox" id="ed-blocked"${v.blocked ? ' checked' : ''}${dis}> Blocked</label>
-        <input type="text" id="ed-blocked-reason" maxlength="200" placeholder="Reason (required)" value="${esc(v.blocked_reason ?? '')}"${ro || !v.blocked ? ' disabled' : ''}>`}
+        <label class="pk"><input type="checkbox" id="ed-started"${v.started_on ? ' checked' : ''}${pro || calc ? ' disabled' : ''}> Started</label>
+        <input type="date" id="ed-started-on" max="${TODAY}" value="${esc(v.started_on ?? '')}" aria-label="Start date"${pro || calc || !v.started_on ? ' disabled' : ''}>
+        <label class="pk"><input type="checkbox" id="ed-completed"${v.completed_on ? ' checked' : ''}${pro || calc ? ' disabled' : ''}> Completed</label>
+        <input type="date" id="ed-completed-on" max="${TODAY}" value="${esc(v.completed_on ?? '')}" aria-label="Completion date"${pro || calc || !v.completed_on ? ' disabled' : ''}>
+        ${calc ? '' : `<label class="pk"><input type="checkbox" id="ed-blocked"${v.blocked ? ' checked' : ''}${pdis}> Blocked</label>
+        <input type="text" id="ed-blocked-reason" maxlength="200" placeholder="Reason (required)" value="${esc(v.blocked_reason ?? '')}"${pro || !v.blocked ? ' disabled' : ''}>`}
       </div>
 
       <h3>Dependencies</h3>
@@ -676,8 +688,8 @@ function openEditor(id, preset = {}) {
         ${t && !ro ? `<button type="button" class="danger btn-with-icon" data-ed="delete">${icon('trash-2')} Delete…</button>` : ''}
         ${t && !ro ? `<button type="button" class="secondary btn-with-icon" data-ed="duplicate">${icon('copy')} Duplicate</button>` : ''}
         <span class="spacer"></span>
-        <button type="button" class="secondary btn-with-icon" data-ed="close">${icon('x')} ${ro ? 'Close' : 'Cancel'}</button>
-        ${ro ? '' : `<button type="submit" class="btn-with-icon">${icon('check')} ${t ? 'Save' : 'Create'}</button>`}
+        <button type="button" class="secondary btn-with-icon" data-ed="close">${icon('x')} ${pro ? 'Close' : 'Cancel'}</button>
+        ${pro ? '' : `<button type="submit" class="btn-with-icon">${icon('check')} ${lead ? 'Save progress' : t ? 'Save' : 'Create'}</button>`}
       </div>
     </form></div>`;
   m.hidden = false;
@@ -717,7 +729,7 @@ function openEditor(id, preset = {}) {
   };
 
   const syncProgress = () => {
-    if (ro || calc) return;
+    if (pro || calc) return;
     const st = $('#ed-started'), co = $('#ed-completed');
     if (co.checked && !st.checked) st.checked = true;          // completed implies started
     $('#ed-started-on').disabled = !st.checked;
@@ -853,9 +865,42 @@ function openEditor(id, preset = {}) {
     }
   });
 
+  // Error of a save: message, and "Reload the task" after a concurrent change
+  const saveFailed = (error, submit) => {
+    submit.disabled = false;
+    msg(errorText(error));
+    if (error.message === 'Task modified by someone else') {
+      $('#ed-msg').insertAdjacentHTML('beforeend', ' <button type="button" class="link" id="ed-reload">Reload the task</button>');
+      $('#ed-reload').addEventListener('click', async () => { closeModal(); await reload(); openEditor(id); });
+    }
+  };
+
+  // Leader (not admin): progress and note only
+  const saveProgress = async () => {
+    const fields = {
+      started_on: calc ? null : $('#ed-started-on').value || null,
+      completed_on: calc ? null : $('#ed-completed-on').value || null,
+      blocked: calc ? false : $('#ed-blocked').checked,
+      blocked_reason: calc ? null : $('#ed-blocked-reason').value.trim() || null,
+      note: $('#ed-note').value.trim() || null,
+    };
+    const focus = (sel, text) => { msg(text); $(sel)?.focus(); };
+    if (fields.started_on > TODAY || fields.completed_on > TODAY) return msg('Start and completion dates cannot be in the future.');
+    if (fields.completed_on && fields.completed_on < fields.started_on) return focus('#ed-completed-on', 'The completion date cannot precede the start date.');
+    if (fields.blocked && !fields.blocked_reason) return focus('#ed-blocked-reason', 'Give the reason why the task is blocked.');
+    const submit = box.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    const { error } = await supabase.rpc('leader_set_progress', { p_id: t.id, p_fields: fields, p_expected: t.updated_at });
+    if (error) { saveFailed(error, submit); return; }
+    closeModal();
+    await reload(`${t.code} progress saved.`);
+    highlight(t.id);
+  };
+
   $('#ed-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (ro) return;
+    if (pro) return;
+    if (lead) { await saveProgress(); return; }
     const fields = {
       department: $('#ed-dept').value,
       name: $('#ed-name').value.trim(),
@@ -889,15 +934,7 @@ function openEditor(id, preset = {}) {
       p_required_by: [...reqs],
       p_expected: t ? t.updated_at : null,
     });
-    if (error) {
-      submit.disabled = false;
-      msg(errorText(error));
-      if (error.message === 'Task modified by someone else') {
-        $('#ed-msg').insertAdjacentHTML('beforeend', ' <button type="button" class="link" id="ed-reload">Reload the task</button>');
-        $('#ed-reload').addEventListener('click', async () => { closeModal(); await reload(); openEditor(id); });
-      }
-      return;
-    }
+    if (error) { saveFailed(error, submit); return; }
     closeModal();
     if (fields.parent_id) { ui.collapsed.delete(fields.parent_id); store('gantt-collapsed', [...ui.collapsed]); }
     await reload();
@@ -906,7 +943,7 @@ function openEditor(id, preset = {}) {
     highlight(savedId);
   });
 
-  (ro ? box.querySelector('[data-ed="close"]') : t ? $('#ed-name') : $('#ed-dept')).focus();
+  (pro ? box.querySelector('[data-ed="close"]') : lead ? (calc ? $('#ed-note') : $('#ed-started')) : t ? $('#ed-name') : $('#ed-dept')).focus();
 }
 
 function subtaskPreset(p) {

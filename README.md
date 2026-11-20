@@ -22,7 +22,7 @@ The pages only check inputs to give clear messages before sending.
 |---|---|---|
 | `index.html`, `register.html`, `welcome.html`, `forgot.html`, `reset.html` | everyone | Login, registration (only `@studenti.unipd.it` and `@unipd.it`), first access, password reset |
 | `shifts.html` | active members | Lab shifts: two weekly grids, half-hour slots 08:30-18:30, booking, shift requests |
-| `gantt.html` | active members (editing: admins) | Project plan (menu "Project plan"): Gantt, task editor, timeline events, review milestones |
+| `gantt.html` | active members (editing: admins; progress: task leaders) | Project plan (menu "Project plan"): Gantt, task editor, timeline events, review milestones |
 | `documents.html` | active members (rights below) | Document register, versions and ESA deliveries, documents required per milestone, review queue |
 | `account.html` | active members | Name and password (opened from the name and role at the top right) |
 | `stats.html` | active members | Booked hours of ended shifts, by person and by task |
@@ -37,7 +37,7 @@ update them when a page or a field changes.
 | Role | Rights |
 |---|---|
 | `user` | Books lab slots as participant, requests shifts, reads the Gantt |
-| `teamleader` | As `user`; can be leader of a department or of a task |
+| `teamleader` | As `user`; can be leader of a department or of a task, and as leader updates the progress of its tasks |
 | `admin` | Everything: Gantt editing, shifts, approvals, members. Always supervisor in the lab (not counted in the capacity) |
 
 A new account is `pending` until an admin approves it in `members.html`.
@@ -87,6 +87,7 @@ Each script runs as a single transaction.
 | `013_notification_events.sql` | Queue of the events notified by e-mail (accounts, department leaders, shift requests, document reviews and responsibles), filled by triggers |
 | `014_approve_past_requests.sql` | A shift request can be approved also after its start (hours worked, approval forgotten); "Add supervisor" also on past hours |
 | `015_stats_for_members.sql` | Stats open to all the active members: `lab_hours` replaces `admin_hours` |
+| `016_leader_task_progress.sql` | The leader of a task (or of its parent) updates started, completed, blocked and note (`leader_set_progress`) |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.

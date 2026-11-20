@@ -147,6 +147,10 @@ const PAGES = {
         <li>If someone else saved the same task in the meantime, the save is refused: reload and repeat.</li>
         <li>Every change is recorded: <i>Change history</i> at the bottom of the task.</li>
       </ul>
+      <h3>Progress ${LEAD}</h3>
+      <p>The <b>leader of a task</b> (or of its parent task) opens it and updates its progress: <i>Started</i>, <i>Completed</i>
+        (with the dates), <i>Blocked</i> with the reason, and the note. Then <b>Save progress</b>. Dates, leader and dependencies
+        are changed by an administrator.</p>
       <p>The other members see the tasks read only. <b>Deliverables</b> in a task: documents it has to produce for a review,
         linked in Documents › Milestones.</p>`,
   },
@@ -224,7 +228,7 @@ const PAGES = {
       <h3>Roles</h3>
       <ul>
         <li><b>User</b>: books lab shifts and requests them, reads Gantt and documents.</li>
-        <li><b>Teamleader</b>: as user, can also be leader of a department or task and responsible of documents, and creates documents. The leader of SYS also manages all documents and the milestones.</li>
+        <li><b>Teamleader</b>: as user, can also be leader of a department or task (and updates the progress of its tasks) and responsible of documents, and creates documents. The leader of SYS also manages all documents and the milestones.</li>
         <li><b>Admin</b>: everything, including approvals, Gantt editing, shifts, milestones and Members.</li>
       </ul>
       <p>You cannot change your own account, and at least one active administrator is always kept.</p>`,
