@@ -149,7 +149,8 @@
       wrap.appendChild(el('h2', 'Department leaders'));
       wrap.appendChild(el('p', 'The leader of a department is the default leader of the tasks of that department. ' +
         'A different leader can be set on each task in the Gantt task editor. ' +
-        'Only active teamleaders and admins can be leaders.', 'hint'));
+        'Only active teamleaders and admins can be leaders. ' +
+        'The leader of SYS also manages all documents and the milestones (approval of versions stays with the admins).', 'hint'));
       const eligible = MEMBERS.filter((m) => m.status === 'active' && (m.role === 'teamleader' || m.role === 'admin'));
       const rows = TEAMS.map((team) => {
         const tr = document.createElement('tr');

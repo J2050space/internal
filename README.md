@@ -61,7 +61,7 @@ A new account is `pending` until an admin approves it in `members.html`.
 - Links: the SharePoint folder and the working file (Word, Excel; one for all versions) on the document, the PDF on each version.
   An approved version is frozen, also for admins: changes go in the next version (an admin can reset a version, with history).
 - Versions V00, V01, ... (the first version can start from another number, to continue the numbering of a document started on SharePoint): In progress → In review → Approved (admins) → Sent to ESA (link to the ESA SharePoint copy) → Accepted by ESA, or ESA changes required (comments). An admin can return a version in review with a note.
-- Rights: new documents by teamleaders (who become responsible) and admins; document and versions by the responsible and admins; approval, milestones and required documents by admins.
+- Rights: document managers are the admins and the leader of the SYS sub-team (`team_leaders`). New documents by teamleaders (who become responsible) and document managers; document, versions and required documents by the responsible and document managers; responsible, deletion of documents and milestones by document managers; approval, return and reset of versions by admins only.
 - Required documents: document × milestone with level (draft, release, update, ad hoc), optional Gantt task that produces it, version that fulfils it.
   The milestone view shows deliveries without a task or with a task ending after the data package is due.
 
@@ -83,7 +83,7 @@ Each script runs as a single transaction.
 | `009_gantt_reset_new_model.sql` | Gantt reset, task codes, new date and status model |
 | `010_documents.sql` | Documents, versions, milestones, required documents, history; department THM renamed THS; `tasks.milestone_label` removed |
 | `011_documents_seed.sql` | Milestones (ESA deadline keys D1.10-D2.80, E1, E2), documents of the FYS4 Phase D and environmental testing DRDs, of the Satellite Project File DRD and of the former SharePoint tracker, required level per milestone |
-| `012_documents_spf_annexes.sql` | Only for the production database (created with the former 010-013): working file link, frozen approved versions, annexes of the Satellite Project File. A new database needs only 010 and 011 |
+| `012_documents_systems_leader.sql` | Only for the production database: Systems leader as document manager, responsible edits the required documents of its documents. Already in 010 for a new database |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.
