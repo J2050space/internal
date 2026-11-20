@@ -119,7 +119,9 @@ Code: `supabase/functions/notify/index.ts`. Deployed manually in Supabase > Edge
 The code contains only ASCII characters (`–` for the dash), so that copying it into the dashboard editor cannot
 alter it. To copy it in Windows PowerShell: `Get-Content -Raw -Encoding UTF8 <file> | Set-Clipboard`.
 
-E-mails sent (sender `j2050space@gmail.com`, plain text). The person who caused an event never receives its e-mail.
+E-mails sent (sender `j2050space@gmail.com`, plain text). The person who caused an event never receives its e-mail. Each e-mail links
+directly to its task, shift, shift request or document (`gantt.html#task=ID`, `shifts.html#shift=ID`, `shifts.html#request=ID`,
+`documents.html#doc=ID`); a member who is logged out gets there after the login.
 
 | Area | When | To |
 |---|---|---|

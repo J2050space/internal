@@ -131,6 +131,10 @@ const emailsOf = (people: (Profile | null | undefined)[], actor?: string | null)
 const vv = (n: number) => `V${String(n).padStart(2, '0')}`;
 const docBase = (d: any) => `${d.subteam}_${d.doc_type}_${d.title}`;
 const docLink = (id: number) => `${SITE_URL}documents.html#doc=${id}`;
+// Direct links to an item (the login page opens it after the login)
+const taskLink = (id: number) => `${SITE_URL}gantt.html#task=${id}`;
+const shiftLink = (id: number) => `${SITE_URL}shifts.html#shift=${id}`;
+const requestLink = (id: number) => `${SITE_URL}shifts.html#request=${id}`;
 const msDue = (m: any): string | null => m.docs_due ?? m.review_date ?? null;
 const VERSION_STATUS: Record<string, string> = {
   in_progress: 'in progress', in_review: 'in review', approved: 'approved, to be sent to ESA',
@@ -218,7 +222,7 @@ function contentFor(shift: any, person: Person, all: Person[], requestNote: stri
     requestNote ? `Note on your request: ${requestNote}` : '',
     `Supervisors: ${list(true) || 'none'}`,
     `Participants: ${list(false) || 'none yet'}`,
-    `Details: ${SITE_URL}shifts.html`,
+    `Details: ${shiftLink(shift.id)}`,
   ].filter(Boolean).join('\n');
   return { summary: `Lab ${person.supervisor ? 'supervision' : 'shift'} \u2013 ${task}`, start: person.start, end: person.end,
     location: shift.location, description };
@@ -355,7 +359,8 @@ async function openTasksWithLeader() {
   return { tasks: (t.data ?? []).map((x: any) => ({ ...x, due: x.deadline ?? x.end_date, leader_id: leaderOf.get(x.id) ?? null })), person };
 }
 
-const taskLine = (t: any) => `- ${t.code} ${t.name} (${t.deadline ? 'deadline' : 'planned end'} ${isoDay(t.due)})`;
+const taskText = (t: any) => `- ${t.code} ${t.name} (${t.deadline ? 'deadline' : 'planned end'} ${isoDay(t.due)})`;
+const taskLine = (t: any) => `${taskText(t)}\n  ${taskLink(t.id)}`;
 
 /* ---------- 3. task assignments: tasks gained and taken away ---------- */
 // Once a day from 07:00 (planning sessions make many changes, often
@@ -388,7 +393,7 @@ async function sendAssignments() {
     if (t.notified_leader_id) entry(t.notified_leader_id).lost.push(t);
   }
   const byDue = (a: any, b: any) => (a.due < b.due ? -1 : 1);
-  const lostLine = (t: any) => `${taskLine(t)}, now ${t.leader_id ? `led by ${nameOf(person.get(t.leader_id))}` : 'without leader'}`;
+  const lostLine = (t: any) => `${taskText(t)}, now ${t.leader_id ? `led by ${nameOf(person.get(t.leader_id))}` : 'without leader'}\n  ${taskLink(t.id)}`;
   const one = (list: any[]) => `${list[0].code} ${list[0].name}`;
   let sent = 0;
   for (const [id, { gained, lost }] of byPerson) {
@@ -472,7 +477,8 @@ async function processOverdue() {
   const subject = (list: any[]) => (list.length === 1 ? `Task overdue: ${list[0].code} ${list[0].name}` : `${list.length} tasks overdue`);
   const intro = (list: any[]) => `The due date of the following task${list.length === 1 ? ' has' : 's have'} passed ` +
     `and the task${list.length === 1 ? ' is' : 's are'} not completed:\n\n`;
-  const footer = 'If the work is done, enter the completion date; otherwise agree new dates with the admins.\n\n' +
+  const footer = 'If the work is done, open the task and enter the completion date (Save progress); ' +
+    'otherwise agree new dates with the admins.\n\n' +
     `Project plan: ${SITE_URL}gantt.html`;
 
   let sent = 0;
@@ -486,7 +492,7 @@ async function processOverdue() {
     if (!leader?.email) continue;
     sent += await send([leader.email], subject(list), `${intro(list)}${list.map(taskLine).join('\n')}\n\n${footer}`);
   }
-  const line = (t: any) => `${taskLine(t)}, leader: ${t.leader_id ? nameOf(person.get(t.leader_id)) : 'none'}`;
+  const line = (t: any) => `${taskText(t)}, leader: ${t.leader_id ? nameOf(person.get(t.leader_id)) : 'none'}\n  ${taskLink(t.id)}`;
   sent += await send(emailsOf(admins), subject(fresh), `${intro(fresh)}${fresh.map(line).join('\n')}\n\n${footer}`);
   await db.from('notification_log').insert(fresh.map((t: any) => ({ key: t.key })));
   return sent;
@@ -685,7 +691,7 @@ const onShiftRequest: Handler = async (e, actor) => {
   const requester = people.get(r.requested_by);
   return send(emailsOf(admins.filter((a) => a.id !== r.requested_by), actor),
     `Shift request: ${nameOf(requester)}, ${fDay(r.starts_at)} ${fTime(r.starts_at)}\u2013${fTime(r.ends_at)}`,
-    `${nameOf(requester)} requests a lab shift:\n\n${requestText(r)}\n\nApprove or reject: ${SITE_URL}shifts.html`);
+    `${nameOf(requester)} requests a lab shift:\n\n${requestText(r)}\n\nApprove or reject: ${requestLink(r.id)}`);
 };
 
 const onRequestRejected: Handler = async (e, actor) => {
@@ -695,7 +701,7 @@ const onRequestRejected: Handler = async (e, actor) => {
   return send(emailsOf([people.get(r.requested_by)], actor),
     `Shift request rejected: ${fDay(r.starts_at)} ${fTime(r.starts_at)}\u2013${fTime(r.ends_at)}`,
     `Your lab shift request has been rejected${r.decided_by ? ` by ${nameOf(people.get(r.decided_by))}` : ''}.\n\n` +
-    `${requestText(r)}\n\nReason: ${r.admin_note ?? 'not given'}\n\nLab shifts: ${SITE_URL}shifts.html`);
+    `${requestText(r)}\n\nReason: ${r.admin_note ?? 'not given'}\n\nRequest: ${requestLink(r.id)}`);
 };
 
 async function versionOf(id: number) {
