@@ -81,7 +81,9 @@ export async function signOut() {
   window.location.replace('index.html');
 }
 
-// Common header: navigation, user name, role, logout.
+const ROLE_LABELS = { user: 'User', teamleader: 'Teamleader', admin: 'Admin' };
+
+// Common header: navigation, user name and role (link to the account page), logout.
 export function renderHeader(profile, activePage) {
   const header = document.getElementById('app-header');
   header.innerHTML = `
@@ -94,15 +96,15 @@ export function renderHeader(profile, activePage) {
     </a>
     <nav>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
-      <a href="gantt.html" data-page="gantt">Gantt</a>
+      <a href="gantt.html" data-page="gantt">Project plan</a>
       <a href="documents.html" data-page="documents">Documents</a>
       <a href="stats.html" data-page="stats" data-admin hidden>Stats</a>
       <a href="members.html" data-page="members" data-admin hidden>Members</a>
-      <a href="account.html" data-page="account">Account</a>
     </nav>
     <div class="user">
-      <span id="user-name"></span>
-      <span id="user-role" class="badge"></span>
+      <a id="user-link" href="account.html" data-page="account" title="Account: name, password, e-mails">
+        ${icon('user')}<span id="user-name"></span><span id="user-role" class="badge role-${profile.role}"></span>
+      </a>
       <button id="logout-btn" type="button" class="secondary btn-icon" aria-label="Log out" title="Log out">${icon('log-out')}</button>
     </div>`;
   if (profile.role === 'admin') {
@@ -112,7 +114,7 @@ export function renderHeader(profile, activePage) {
   activeLink?.classList.add('active');
   activeLink?.scrollIntoView({ block: 'nearest', inline: 'center' });
   header.querySelector('#user-name').textContent = displayName(profile);
-  header.querySelector('#user-role').textContent = profile.role;
+  header.querySelector('#user-role').textContent = ROLE_LABELS[profile.role] ?? profile.role;
   header.querySelector('#logout-btn').addEventListener('click', signOut);
   mountThemeToggle(header.querySelector('.user'));
   initHelp(activePage);

@@ -102,7 +102,7 @@ const PAGES = {
   },
 
   gantt: {
-    title: 'Gantt',
+    title: 'Project plan',
     html: `
       <h3>Views</h3>
       <ul>
@@ -232,6 +232,7 @@ const PAGES = {
   account: {
     title: 'Account',
     html: `
+      <p>Open this page by clicking your name and role at the top right.</p>
       <ul>
         <li><b>Profile</b>: your first and last name as shown to the team. The email cannot be changed.</li>
         <li><b>Change password</b>: at least 12 characters, typed twice.</li>

@@ -22,9 +22,9 @@ The pages only check inputs to give clear messages before sending.
 |---|---|---|
 | `index.html`, `register.html`, `welcome.html`, `forgot.html`, `reset.html` | everyone | Login, registration (only `@studenti.unipd.it` and `@unipd.it`), first access, password reset |
 | `shifts.html` | active members | Lab shifts: two weekly grids, half-hour slots 08:30-18:30, booking, shift requests |
-| `gantt.html` | active members (editing: admins) | Project Gantt, task editor, timeline events, review milestones |
+| `gantt.html` | active members (editing: admins) | Project plan (menu "Project plan"): Gantt, task editor, timeline events, review milestones |
 | `documents.html` | active members (rights below) | Document register, versions and ESA deliveries, documents required per milestone, review queue |
-| `account.html` | active members | Name and password |
+| `account.html` | active members | Name and password (opened from the name and role at the top right) |
 | `stats.html` | admins | Booked hours of ended shifts, by person and by task |
 | `members.html` | admins | Approval of registrations, roles, department leaders |
 
