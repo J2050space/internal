@@ -53,6 +53,20 @@ const PAGES = {
       <p>A <b>disabled</b> account cannot use the site: contact an administrator.</p>`,
   },
 
+  home: {
+    title: 'Home',
+    html: `
+      <p>What concerns you, on one page. Click an item to open it on its page.</p>
+      <ul>
+        <li>${ADMIN} <b>Waiting for the admins</b>: accounts to approve, shift requests, document versions to approve and to send to ESA.</li>
+        <li><b>My next lab hours</b>: your bookings not yet ended. <b>My shift requests</b>: pending, and decided in the last 14 days.</li>
+        <li><b>My tasks</b>: open tasks of which you are the leader, problems first (blocked, overdue, late start), then by due date.
+          Open one to update its progress.</li>
+        <li><b>My documents</b>: documents of which you are responsible, by next delivery; a returned version shows what to change.</li>
+        <li><b>My lab hours</b>: hours of the ended shifts, as booked (details in Stats).</li>
+      </ul>`,
+  },
+
   shifts: {
     title: 'Lab shifts',
     html: `

@@ -87,7 +87,7 @@
 
       const { session, profile } = result;
       if (!session) { window.location.replace('index.html'); return; }
-      if (isReady(profile)) { window.location.replace('shifts.html'); return; }
+      if (isReady(profile)) { window.location.replace('home.html'); return; }
 
       document.getElementById('account-email').textContent = profile.email ?? '';
       const missingName = !profile.first_name || !profile.last_name;

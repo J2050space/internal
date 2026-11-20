@@ -21,6 +21,7 @@ The pages only check inputs to give clear messages before sending.
 | Page | Users | Content |
 |---|---|---|
 | `index.html`, `register.html`, `welcome.html`, `forgot.html`, `reset.html` | everyone | Login, registration (only `@studenti.unipd.it` and `@unipd.it`), first access, password reset |
+| `home.html` | active members | Home after the login: own next lab hours, shift requests, tasks led, documents as responsible, own lab hours; for admins, what waits for them |
 | `shifts.html` | active members | Lab shifts: two weekly grids, half-hour slots 08:30-18:30, booking, shift requests |
 | `gantt.html` | active members (editing: admins; progress: task leaders) | Project plan (menu "Project plan"): Gantt, task editor, timeline events, review milestones |
 | `documents.html` | active members (rights below) | Document register, versions and ESA deliveries, documents required per milestone, review queue |

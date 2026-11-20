@@ -70,7 +70,7 @@ export function isReady(profile) {
 
 // Page opened after the login: the page asked for before it (?next=), if any.
 export function landingPage(profile, next = null) {
-  return isReady(profile) ? next ?? 'shifts.html' : 'welcome.html';
+  return isReady(profile) ? next ?? 'home.html' : 'welcome.html';
 }
 
 // Protected page (with its #view or #item) to open after the login, from ?next= of the login page.
@@ -84,7 +84,7 @@ export function nextPage() {
 
 // Login page that comes back to the current page after the login
 function loginUrl() {
-  const page = window.location.pathname.split('/').pop() || 'shifts.html';
+  const page = window.location.pathname.split('/').pop() || 'home.html';
   return `index.html?next=${encodeURIComponent(page + window.location.hash)}`;
 }
 
@@ -103,7 +103,7 @@ const ROLE_LABELS = { user: 'User', teamleader: 'Teamleader', admin: 'Admin' };
 export function renderHeader(profile, activePage) {
   const header = document.getElementById('app-header');
   header.innerHTML = `
-    <a class="brand" href="shifts.html">
+    <a class="brand" href="home.html">
       <span class="brand-logo" role="img" aria-label="J2050">
         <img class="logo-on-light" src="img/j2050-logo-light.png" width="239" height="88" alt="">
         <img class="logo-on-dark" src="img/j2050-logo-dark.png" width="241" height="88" alt="">
@@ -111,6 +111,7 @@ export function renderHeader(profile, activePage) {
       <span class="brand-sub">Team Management</span>
     </a>
     <nav>
+      <a href="home.html" data-page="home">Home</a>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
       <a href="gantt.html" data-page="gantt">Project plan</a>
       <a href="documents.html" data-page="documents">Documents</a>
@@ -177,7 +178,7 @@ export async function initProtectedPage(activePage, { adminOnly = false } = {}) 
   if (!result.session) { window.location.replace(loginUrl()); return null; }
   if (!isReady(result.profile)) { window.location.replace('welcome.html'); return null; }
   if (adminOnly && result.profile.role !== 'admin') {
-    window.location.replace('shifts.html');
+    window.location.replace('home.html');
     return null;
   }
   renderHeader(result.profile, activePage);
