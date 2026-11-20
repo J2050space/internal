@@ -409,7 +409,7 @@ function openShift(id) {
     <div class="buttons">
       ${ADMIN ? `<button type="button" class="danger btn-with-icon" data-act="delete-shift">${icon('trash-2')} Delete shift</button>` : ''}
       ${ADMIN ? `<button type="button" class="secondary btn-with-icon" data-act="edit-shift">${icon('pencil')} Edit</button>` : ''}
-      ${ADMIN && !s.ended ? '<button type="button" class="secondary" data-act="add-sup">Add supervisor…</button>' : ''}
+      ${ADMIN ? '<button type="button" class="secondary" data-act="add-sup">Add supervisor…</button>' : ''}
       ${ownFuture ? '<button type="button" class="danger" data-act="cancel-own">Cancel my booking</button>' : ''}
       ${ownFuture ? '<button type="button" class="secondary" data-act="change-own">Change my hours…</button>' : ''}
       ${canBook ? `<button type="button" data-act="book">${ADMIN ? 'Join as supervisor…' : 'Book…'}</button>` : ''}
@@ -450,18 +450,21 @@ function openShift(id) {
 }
 
 /* ---------- booking of own hours (or of another admin as supervisor) ---------- */
-// userId = ME: own booking; userId = null: admin chooses another admin as supervisor
+// userId = ME: own booking; userId = null: admin chooses another admin as supervisor.
+// Adding a supervisor is possible also on past hours (record of who supervised,
+// e.g. to replace a supervisor: add the right one, remove the wrong booking).
 function openBookingForm(s, userId) {
   const chooseAdmin = userId === null;
   const target = () => (chooseAdmin ? box.querySelector('#b-user').value : ME);
   const role = chooseAdmin || ADMIN ? 'supervisor' : 'participant';
   const existing = (uid) => s.bookings.find((x) => x.user_id === uid) ?? null;
-  const future = s.slots.filter((sl) => !sl.started);
-  if (!future.length) { toast('The shift has already started.'); return; }
+  const choosable = chooseAdmin ? s.slots : s.slots.filter((sl) => !sl.started);
+  if (!choosable.length) { toast('The shift has already started.'); return; }
 
-  // Slot usable by the target: not started; for participants also covered and with a free seat
+  // Slot usable by the target: not started (except when adding a supervisor);
+  // for participants also covered and with a free seat
   const usable = (sl, uid) => {
-    if (sl.started) return false;
+    if (sl.started && !chooseAdmin) return false;
     if (role === 'supervisor') return true;
     const mineHere = sl.participants.some((x) => x.user_id === uid);
     return sl.covered && (sl.free > 0 || mineHere);
@@ -469,23 +472,32 @@ function openBookingForm(s, userId) {
   const own = existing(ME);
   const init = own && !chooseAdmin
     ? { from: Date.parse(own.starts_at), to: Date.parse(own.ends_at) }
-    : (() => {
-      const first = future.find((sl) => usable(sl, ME)) ?? future[0];
+    : chooseAdmin && s.slots.some((sl) => sl.started)
+      ? { from: choosable[0].t, to: choosable[choosable.length - 1].t + SLOT_MS }   // shift started: whole shift
+      : (() => {
+      const first = choosable.find((sl) => usable(sl, ME)) ?? choosable[0];
       return { from: first.t, to: first.t + SLOT_MS };
     })();
 
-  const fromOpts = future.map((sl) => `<option value="${sl.t}"${sl.t === init.from ? ' selected' : ''}>${sl.label}</option>`).join('');
-  const toOpts = future.map((sl) => `<option value="${sl.t + SLOT_MS}"${sl.t + SLOT_MS === init.to ? ' selected' : ''}>${formatTime(new Date(sl.t + SLOT_MS))}</option>`).join('');
-  const others = ADMINS.filter((a) => !s.bookings.some((x) => x.user_id === a.id));
+  const fromOpts = choosable.map((sl) => `<option value="${sl.t}"${sl.t === init.from ? ' selected' : ''}>${sl.label}</option>`).join('');
+  const toOpts = choosable.map((sl) => `<option value="${sl.t + SLOT_MS}"${sl.t + SLOT_MS === init.to ? ' selected' : ''}>${formatTime(new Date(sl.t + SLOT_MS))}</option>`).join('');
+  // All the admins: one already booked keeps one booking, whose hours are changed
+  // (e.g. extended to cover slots without supervisor). Default: first admin not booked.
+  const bookedText = (a) => {
+    const b = existing(a.id);
+    return b ? ` (booked ${formatTime(b.starts_at)}–${formatTime(b.ends_at)})` : '';
+  };
+  const firstFree = ADMINS.find((a) => !existing(a.id))?.id;
 
   const box = openModal(`
     <h2>${chooseAdmin ? 'Add supervisor' : own ? 'Change my hours' : role === 'supervisor' ? 'Join as supervisor' : 'Book slots'}</h2>
     <p class="meta">${s.tasks ? `${esc(s.tasks.code)} – ${esc(s.tasks.name)} · ` : ''}${DAYS[weekday(s.date)] ?? ''} ${formatDate(s.starts_at)},
       shift ${formatTime(s.starts_at)}–${formatTime(s.ends_at)}</p>
+    ${chooseAdmin && s.slots.some((sl) => sl.started) ? `<p class="hint">The shift has started: the booking records who
+      supervised, also on past hours. To replace a supervisor, add the right one here, then remove the wrong booking with ✕.</p>` : ''}
     <form novalidate>
-      ${chooseAdmin ? `<label for="b-user">Admin</label><select id="b-user">${others.length
-        ? others.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')
-        : '<option value="">No other admin available</option>'}</select>` : ''}
+      ${chooseAdmin ? `<label for="b-user">Admin</label><select id="b-user">${ADMINS.map((a) =>
+        `<option value="${a.id}"${a.id === firstFree ? ' selected' : ''}>${esc(a.name)}${esc(bookedText(a))}</option>`).join('')}</select>` : ''}
       <div class="row" style="grid-template-columns:1fr 1fr">
         <div><label for="b-from">From</label><select id="b-from">${fromOpts}</select></div>
         <div><label for="b-to">To</label><select id="b-to">${toOpts}</select></div>
@@ -506,24 +518,26 @@ function openBookingForm(s, userId) {
     const uid = target();
     const from = Number(fromSel.value);
     const to = Number(toSel.value);
-    const range = future.filter((sl) => sl.t >= from && sl.t < to);
-    box.querySelector('#b-hours').innerHTML = `<ul class="hours">${future.map((sl) => {
+    const range = choosable.filter((sl) => sl.t >= from && sl.t < to);
+    box.querySelector('#b-hours').innerHTML = `<ul class="hours">${choosable.map((sl) => {
       const inRange = sl.t >= from && sl.t < to;
       const state = role === 'supervisor' ? (sl.covered ? `supervised by ${sl.supervisors.map((x) => x.name).join(', ')}` : 'no supervisor')
         : !sl.covered ? 'no supervisor' : `${sl.free} free of ${s.capacity}`;
       return `<li class="${inRange ? 'sel' : ''}${usable(sl, uid) ? '' : ' no'}"><span class="mono">${sl.label}</span> ${esc(state)}</li>`;
     }).join('')}</ul>`;
     let problem = '';
-    if (chooseAdmin && !uid) problem = 'No other admin available.';
+    if (chooseAdmin && !uid) problem = 'Select an admin.';
     else if (to <= from) problem = 'The end shall be after the start.';
     else if (range.some((sl) => !usable(sl, uid))) {
       problem = range.some((sl) => !sl.covered) ? 'At least one selected slot has no supervisor yet.' : 'At least one selected slot is full.';
     }
     
     const who = chooseAdmin ? (ADMINS.find((a) => a.id === uid)?.name ?? '') : 'You';
+    const change = chooseAdmin && existing(uid);
     summary.className = `message ${problem ? 'error' : 'info'}`;
     summary.textContent = problem ||
-      `${who} ${chooseAdmin ? 'will be booked' : own ? 'will be booked' : 'book'} ${formatTime(new Date(from))}–${formatTime(new Date(to))} ` +
+      `${change ? `The booking of ${who} will be changed to` : `${who} ${chooseAdmin || own ? 'will be booked' : 'book'}`} ` +
+      `${formatTime(new Date(from))}–${formatTime(new Date(to))} ` +
       `(${durationText(to - from)}) as ${role}, ${DAYS[weekday(s.date)] ?? ''} ${formatDate(s.starts_at)}.`;
     okBtn.disabled = Boolean(problem);
   };
@@ -532,8 +546,14 @@ function openBookingForm(s, userId) {
     update();
   });
   toSel.addEventListener('change', update);
-  box.querySelector('#b-user')?.addEventListener('change', update);
+  // Admin already booked: start from his/her current hours
+  const applyUser = () => {
+    const b = chooseAdmin ? existing(target()) : null;
+    if (b) { fromSel.value = String(Date.parse(b.starts_at)); toSel.value = String(Date.parse(b.ends_at)); }
+  };
+  box.querySelector('#b-user')?.addEventListener('change', () => { applyUser(); update(); });
   box.querySelector('[data-act="close"]').addEventListener('click', closeModal);
+  applyUser();
   update();
 
   box.querySelector('form').addEventListener('submit', async (e) => {
@@ -565,11 +585,13 @@ function openRequest(id) {
       ${r.tasks ? `<dt>Task</dt><dd>${esc(r.tasks.code)} – ${esc(r.tasks.name)}</dd>` : ''}
       ${r.location ? `<dt>Location</dt><dd>${esc(r.location)}</dd>` : ''}
     </dl>
-    ${r.started ? '<p class="hint">The requested start has passed: the request can only be rejected or withdrawn.</p>' : ''}
+    ${r.started ? `<p class="hint">The requested start has passed.${ADMIN
+      ? ' Approve it to record the hours if the member came to the lab (approval forgotten), otherwise reject it.'
+      : ' An admin can still approve it, if you came to the lab, or reject it.'}</p>` : ''}
     <p class="message" role="alert" hidden></p>
     <div class="buttons">
       ${ADMIN && r.status === 'pending' ? '<button type="button" class="danger" data-act="reject">Reject</button>' : ''}
-      ${ADMIN && r.status === 'pending' && !r.started ? '<button type="button" data-act="approve">Approve…</button>' : ''}
+      ${ADMIN && r.status === 'pending' ? '<button type="button" data-act="approve">Approve…</button>' : ''}
       ${r.own && r.status === 'pending' ? `<button type="button" class="secondary btn-with-icon" data-act="withdraw">${icon('undo-2')} Withdraw</button>` : ''}
       <button type="button" class="secondary btn-with-icon" data-act="close">${icon('x')} Close</button>
     </div>`);
@@ -619,13 +641,14 @@ function slotFields(v) {
 }
 
 // Returns an error text, or null if the slot is valid.
-function checkSlot(date, start, end) {
+// allowPast: approval of a request after its start (hours already worked)
+function checkSlot(date, start, end, allowPast = false) {
   if (!date || !start || !end) return 'Date, start and end are required.';
   if (weekday(date) > 4) return 'Shifts are possible from Monday to Friday only.';
   if (toMin(start) < DAY_START || toMin(end) > DAY_END) return `Shifts are possible between ${hhmm(DAY_START)} and ${hhmm(DAY_END)} only.`;
   if (toMin(start) % SLOT || toMin(end) % SLOT) return 'Shifts start and end on :00 or :30.';
   if (toMin(end) <= toMin(start)) return 'The end shall be after the start.';
-  if (zonedToIso(date, start) <= new Date().toISOString()) return 'The start shall be in the future.';
+  if (!allowPast && zonedToIso(date, start) <= new Date().toISOString()) return 'The start shall be in the future.';
   return null;
 }
 
@@ -712,8 +735,7 @@ function openShiftForm(s, prefill = {}) {
         ({ error } = await supabase.rpc('admin_set_capacity', {
           p_shift_id: s.id, p_capacity: capacity, p_remove_user_ids: remove,
         }));
-      }
-    }
+      }    }
     if (error) { submit.disabled = false; modalError(box, errorText(error)); return; }
     closeModal();
     await reload(s ? 'Shift updated.' : 'Shift created.');
@@ -763,6 +785,7 @@ function openApproveForm(r) {
   const box = openModal(`
     <h2>Approve request</h2>
     <p class="meta">Requested by ${esc(personName(r.requester))} on ${formatDate(r.created_at)}. The shift is created, the supervisor and the requester are booked on it.</p>
+    ${r.started ? '<p class="hint">The requested start has passed: the shift is recorded with the hours below and counted in Stats. No calendar invitation (and no note) is sent for hours already ended.</p>' : ''}
     <form novalidate>
       ${slotFields(v)}
       <label for="f-task">Task</label><select id="f-task" required>${taskOptions(r.task_id, false)}</select>
@@ -778,8 +801,10 @@ function openApproveForm(r) {
   box.querySelector('form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const date = val(box, 'f-date'), start = val(box, 'f-start'), end = val(box, 'f-end');
-    const slotError = checkSlot(date, start, end);
+    const slotError = checkSlot(date, start, end, true);
     if (slotError) { modalError(box, slotError); return; }
+    if (zonedToIso(date, start) <= new Date().toISOString()
+        && !window.confirm('The start is in the past: record these hours as done?')) return;
     const taskId = Number(val(box, 'f-task'));
     if (!taskId) { modalError(box, 'Select a task.'); return; }
     const capacity = Math.round(Number(val(box, 'f-cap')));
