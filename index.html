@@ -52,14 +52,15 @@
     import { supabase } from './js/config.js';
     import { initHelp } from './js/help.js';
     initHelp('login');
-    import { getSessionProfile, landingPage, friendlyError, showMessage } from './js/auth.js';
+    import { getSessionProfile, landingPage, nextPage, friendlyError, showMessage } from './js/auth.js';
 
     const msg = document.getElementById('login-msg');
 
-    // Already logged in (also after opening the email confirmation link)
+    // Already logged in (also after opening the email confirmation link).
+    // A link opened while logged out (e.g. from an e-mail) is opened after the login.
     async function goToLanding() {
       const { session, profile } = await getSessionProfile();
-      if (session) window.location.replace(landingPage(profile));
+      if (session) window.location.replace(landingPage(profile, nextPage()));
     }
     try { await goToLanding(); } catch (err) { showMessage(msg, friendlyError(err)); }
 

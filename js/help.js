@@ -20,6 +20,7 @@ const PAGES = {
       <ul>
         <li><b>Create account</b>: first access. After the confirmation email, log in, enter your name and wait for the approval of an administrator.</li>
         <li><b>Forgot password?</b>: a link to set a new password is sent by email.</li>
+        <li>A link of the site opened while logged out (e.g. from a notification e-mail) is opened after the login.</li>
       </ul>`,
   },
   register: {
@@ -47,7 +48,7 @@ const PAGES = {
     html: `
       <ol>
         <li><b>Your name</b>: first and last name as they will be shown to the team (shifts, Gantt, documents).</li>
-        <li><b>Approval</b>: an administrator approves the account. Press <i>Check again</i> to see if it has been approved.</li>
+        <li><b>Approval</b>: an administrator approves the account and you receive an e-mail. Press <i>Check again</i> to see if it has been approved.</li>
       </ol>
       <p>A <b>disabled</b> account cannot use the site: contact an administrator.</p>`,
   },

@@ -68,8 +68,24 @@ export function isReady(profile) {
   return Boolean(profile.first_name && profile.last_name && profile.status === 'active');
 }
 
-export function landingPage(profile) {
-  return isReady(profile) ? 'shifts.html' : 'welcome.html';
+// Page opened after the login: the page asked for before it (?next=), if any.
+export function landingPage(profile, next = null) {
+  return isReady(profile) ? next ?? 'shifts.html' : 'welcome.html';
+}
+
+// Protected page (with its #view or #item) to open after the login, from ?next= of the login page.
+// Only a page of this site, never another address.
+const PUBLIC_PAGES = ['index.html', 'register.html', 'welcome.html', 'forgot.html', 'reset.html'];
+export function nextPage() {
+  const next = new URLSearchParams(window.location.search).get('next') ?? '';
+  const m = /^([a-z]+\.html)(#[A-Za-z0-9=_.-]*)?$/.exec(next);
+  return m && !PUBLIC_PAGES.includes(m[1]) ? next : null;
+}
+
+// Login page that comes back to the current page after the login
+function loginUrl() {
+  const page = window.location.pathname.split('/').pop() || 'shifts.html';
+  return `index.html?next=${encodeURIComponent(page + window.location.hash)}`;
 }
 
 export function displayName(profile) {
@@ -132,7 +148,7 @@ export async function initProtectedPage(activePage, { adminOnly = false } = {}) 
       'Profile not found or not readable. Contact an administrator.';
     return null;
   }
-  if (!result.session) { window.location.replace('index.html'); return null; }
+  if (!result.session) { window.location.replace(loginUrl()); return null; }
   if (!isReady(result.profile)) { window.location.replace('welcome.html'); return null; }
   if (adminOnly && result.profile.role !== 'admin') {
     window.location.replace('shifts.html');
