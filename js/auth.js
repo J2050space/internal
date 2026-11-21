@@ -68,8 +68,24 @@ export function isReady(profile) {
   return Boolean(profile.first_name && profile.last_name && profile.status === 'active');
 }
 
-export function landingPage(profile) {
-  return isReady(profile) ? 'shifts.html' : 'welcome.html';
+// Page opened after the login: the page asked for before it (?next=), if any.
+export function landingPage(profile, next = null) {
+  return isReady(profile) ? next ?? 'home.html' : 'welcome.html';
+}
+
+// Protected page (with its #view or #item) to open after the login, from ?next= of the login page.
+// Only a page of this site, never another address.
+const PUBLIC_PAGES = ['index.html', 'register.html', 'welcome.html', 'forgot.html', 'reset.html'];
+export function nextPage() {
+  const next = new URLSearchParams(window.location.search).get('next') ?? '';
+  const m = /^([a-z]+\.html)(#[A-Za-z0-9=_.-]*)?$/.exec(next);
+  return m && !PUBLIC_PAGES.includes(m[1]) ? next : null;
+}
+
+// Login page that comes back to the current page after the login
+function loginUrl() {
+  const page = window.location.pathname.split('/').pop() || 'home.html';
+  return `index.html?next=${encodeURIComponent(page + window.location.hash)}`;
 }
 
 export function displayName(profile) {
@@ -81,11 +97,13 @@ export async function signOut() {
   window.location.replace('index.html');
 }
 
-// Common header: navigation, user name, role, logout.
+const ROLE_LABELS = { user: 'User', teamleader: 'Teamleader', admin: 'Admin' };
+
+// Common header: navigation, user name and role (link to the account page), logout.
 export function renderHeader(profile, activePage) {
   const header = document.getElementById('app-header');
   header.innerHTML = `
-    <a class="brand" href="shifts.html">
+    <a class="brand" href="home.html">
       <span class="brand-logo" role="img" aria-label="J2050">
         <img class="logo-on-light" src="img/j2050-logo-light.png" width="239" height="88" alt="">
         <img class="logo-on-dark" src="img/j2050-logo-dark.png" width="241" height="88" alt="">
@@ -93,16 +111,17 @@ export function renderHeader(profile, activePage) {
       <span class="brand-sub">Team Management</span>
     </a>
     <nav>
+      <a href="home.html" data-page="home">Home</a>
       <a href="shifts.html" data-page="shifts">Lab shifts</a>
-      <a href="gantt.html" data-page="gantt">Gantt</a>
+      <a href="gantt.html" data-page="gantt">Project plan</a>
       <a href="documents.html" data-page="documents">Documents</a>
-      <a href="stats.html" data-page="stats" data-admin hidden>Stats</a>
+      <a href="stats.html" data-page="stats">Stats</a>
       <a href="members.html" data-page="members" data-admin hidden>Members</a>
-      <a href="account.html" data-page="account">Account</a>
     </nav>
     <div class="user">
-      <span id="user-name"></span>
-      <span id="user-role" class="badge"></span>
+      <a id="user-link" href="account.html" data-page="account" title="Account: name, password, e-mails">
+        ${icon('user')}<span id="user-name"></span><span id="user-role" class="badge role-${profile.role}"></span>
+      </a>
       <button id="logout-btn" type="button" class="secondary btn-icon" aria-label="Log out" title="Log out">${icon('log-out')}</button>
     </div>`;
   if (profile.role === 'admin') {
@@ -112,10 +131,36 @@ export function renderHeader(profile, activePage) {
   activeLink?.classList.add('active');
   activeLink?.scrollIntoView({ block: 'nearest', inline: 'center' });
   header.querySelector('#user-name').textContent = displayName(profile);
-  header.querySelector('#user-role').textContent = profile.role;
+  header.querySelector('#user-role').textContent = ROLE_LABELS[profile.role] ?? profile.role;
   header.querySelector('#logout-btn').addEventListener('click', signOut);
   mountThemeToggle(header.querySelector('.user'));
   initHelp(activePage);
+  if (profile.role === 'admin') showTodoCounts(header).catch((err) => console.error(err));
+}
+
+// Admins: number of things waiting for them, next to the menu items
+async function showTodoCounts(header) {
+  const [requests, versions, members] = await Promise.all([
+    supabase.from('shift_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('document_versions').select('id', { count: 'exact', head: true }).eq('status', 'in_review'),
+    supabase.rpc('admin_list_members'),
+  ]);
+  const waiting = members.error ? 0 : members.data.filter((m) => m.status === 'pending' && m.email_confirmed).length;
+  const counts = [
+    ['shifts', requests.error ? 0 : requests.count, 'shift requests to approve or reject'],
+    ['documents', versions.error ? 0 : versions.count, 'versions waiting for approval'],
+    ['members', waiting, 'accounts awaiting approval'],
+  ];
+  counts.forEach(([page, n, what]) => {
+    const link = header.querySelector(`nav [data-page="${page}"]`);
+    if (!link || !n) return;
+    const badge = document.createElement('span');
+    badge.className = 'nav-count';
+    badge.textContent = String(n);
+    badge.title = `${n} ${what}`;
+    link.append(' ', badge);
+    link.setAttribute('aria-label', `${link.firstChild.textContent.trim()}, ${n} ${what}`);
+  });
 }
 
 // Start-up sequence of a protected page.
@@ -130,10 +175,10 @@ export async function initProtectedPage(activePage, { adminOnly = false } = {}) 
       'Profile not found or not readable. Contact an administrator.';
     return null;
   }
-  if (!result.session) { window.location.replace('index.html'); return null; }
+  if (!result.session) { window.location.replace(loginUrl()); return null; }
   if (!isReady(result.profile)) { window.location.replace('welcome.html'); return null; }
   if (adminOnly && result.profile.role !== 'admin') {
-    window.location.replace('shifts.html');
+    window.location.replace('home.html');
     return null;
   }
   renderHeader(result.profile, activePage);

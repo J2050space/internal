@@ -1,4 +1,4 @@
-// Stats (admin): booked hours of ended lab shifts, by person, by task, person x task.
+// Stats (all active members): booked hours of ended lab shifts, by person, by task, person x task.
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, todayIso } from './format.js';
@@ -12,7 +12,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 const h1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 
-const me = await initProtectedPage('stats', { adminOnly: true });
+const me = await initProtectedPage('stats');
 const TODAY = todayIso();
 const ui = { view: 'people', from: addDays(TODAY, -29), to: TODAY, team: 'All' };
 let ROWS = [];        // { user_id, person, task_id, role: participant|supervisor, hours, shifts }
@@ -20,7 +20,7 @@ let TASKS = new Map(); // id -> task
 
 async function load() {
   const [h, t] = await Promise.all([
-    supabase.rpc('admin_hours', { p_from: ui.from, p_to: ui.to }),
+    supabase.rpc('lab_hours', { p_from: ui.from, p_to: ui.to }),
     supabase.from('tasks').select('id, code, name, parent_id, teams, department'),
   ]);
   if (h.error || t.error) throw (h.error || t.error);
@@ -58,7 +58,7 @@ function taskLabel(id) {
 function byPerson(list) {
   const map = new Map();
   list.forEach((r) => {
-    const p = map.get(r.user_id) ?? { name: r.person, hours: 0, sup: 0, shifts: 0, tasks: new Map() };
+    const p = map.get(r.user_id) ?? { id: r.user_id, name: r.person, hours: 0, sup: 0, shifts: 0, tasks: new Map() };
     p.hours += r.hours;
     if (r.role === 'supervisor') p.sup += r.hours;
     p.shifts += r.shifts;
@@ -74,7 +74,7 @@ function viewPeople(list) {
   const max = people[0].hours || 1;
   const total = people.reduce((s, p) => s + p.hours, 0);
   return `<div class="table-scroll card cards"><table><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">of which supervising</th><th class="num">Shifts</th><th>Main tasks</th></tr></thead><tbody>
-    ${people.map((p) => `<tr><td data-label="Person">${esc(p.name)}</td>
+    ${people.map((p) => `<tr${p.id === me.id ? ' class="me"' : ''}><td data-label="Person">${esc(p.name)}${p.id === me.id ? ' (you)' : ''}</td>
       <td class="num" data-label="Hours"><span class="bar" style="width:${Math.round((p.hours / max) * 80)}px"></span>${h1(p.hours)}</td>
       <td class="num" data-label="of which supervising">${p.sup ? h1(p.sup) : ''}</td>
       <td class="num" data-label="Shifts">${p.shifts}</td>
@@ -124,7 +124,7 @@ function viewMatrix(list) {
   const code = (id) => esc(TASKS.get(id)?.code ?? '?');
   return `<div class="table-scroll card matrix-scroll"><table class="matrix"><thead><tr><th>Person</th>
       ${cols.map((id) => `<th class="num" title="${esc(TASKS.get(id)?.name ?? '')}">${code(id)}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>
-    ${people.map((p) => `<tr><td>${esc(p.name)}</td>${cols.map((id) =>
+    ${people.map((p) => `<tr${p.id === me.id ? ' class="me"' : ''}><td>${esc(p.name)}${p.id === me.id ? ' (you)' : ''}</td>${cols.map((id) =>
       `<td class="num">${p.tasks.has(id) ? h1(p.tasks.get(id)) : ''}</td>`).join('')}<td class="num"><b>${h1(p.hours)}</b></td></tr>`).join('')}
     <tr class="total"><td>Total</td>${cols.map((id) => `<td class="num">${h1(taskTotals.get(id))}</td>`).join('')}
       <td class="num">${h1(people.reduce((s, p) => s + p.hours, 0))}</td></tr>
@@ -137,8 +137,9 @@ function render() {
   const total = list.reduce((s, r) => s + r.hours, 0);
   const people = new Set(list.map((r) => r.user_id)).size;
   const tasks = new Set(list.map((r) => r.task_id)).size;
+  const mine = list.filter((r) => r.user_id === me.id).reduce((s, r) => s + r.hours, 0);
   document.getElementById('kpi').innerHTML = `<li>Period<b>${formatDate(ui.from)} – ${formatDate(ui.to)}</b></li>
-    <li>Total hours<b>${h1(total)}</b></li><li>People<b>${people}</b></li><li>Tasks<b>${tasks}</b></li>`;
+    <li>Total hours<b>${h1(total)}</b></li><li>People<b>${people}</b></li><li>Tasks<b>${tasks}</b></li><li>Your hours<b>${h1(mine)}</b></li>`;
   document.getElementById('view').innerHTML = ui.view === 'tasks' ? viewTasks(list)
     : ui.view === 'matrix' ? viewMatrix(list) : viewPeople(list);
 }

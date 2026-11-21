@@ -21,12 +21,16 @@ The pages only check inputs to give clear messages before sending.
 | Page | Users | Content |
 |---|---|---|
 | `index.html`, `register.html`, `welcome.html`, `forgot.html`, `reset.html` | everyone | Login, registration (only `@studenti.unipd.it` and `@unipd.it`), first access, password reset |
+| `home.html` | active members | Home after the login: own next lab hours, shift requests, tasks led, documents as responsible, own lab hours; for admins, what waits for them |
 | `shifts.html` | active members | Lab shifts: two weekly grids, half-hour slots 08:30-18:30, booking, shift requests |
-| `gantt.html` | active members (editing: admins) | Project Gantt, task editor, timeline events, review milestones |
+| `gantt.html` | active members (editing: admins; progress: task leaders) | Project plan (menu "Project plan"): Gantt, task editor, timeline events, review milestones |
 | `documents.html` | active members (rights below) | Document register, versions and ESA deliveries, documents required per milestone, review queue |
-| `account.html` | active members | Name and password |
-| `stats.html` | admins | Booked hours of ended shifts, by person and by task |
+| `account.html` | active members | Name and password (opened from the name and role at the top right) |
+| `stats.html` | active members | Booked hours of ended shifts, by person and by task |
 | `members.html` | admins | Approval of registrations, roles, department leaders |
+
+For the admins, the menu shows next to Lab shifts, Documents and Members the number of shift requests, versions in review
+and registrations waiting for them.
 
 Every page has a "?" button with its guide, and the fields of the forms have a "?" with their meaning.
 All texts are in `js/help.js` (`PAGES`: guide of each page; `FIELDS`: help of each field, keyed by the id of the control):
@@ -37,7 +41,7 @@ update them when a page or a field changes.
 | Role | Rights |
 |---|---|
 | `user` | Books lab slots as participant, requests shifts, reads the Gantt |
-| `teamleader` | As `user`; can be leader of a department or of a task |
+| `teamleader` | As `user`; can be leader of a department or of a task, and as leader updates the progress of its tasks |
 | `admin` | Everything: Gantt editing, shifts, approvals, members. Always supervisor in the lab (not counted in the capacity) |
 
 A new account is `pending` until an admin approves it in `members.html`.
@@ -86,6 +90,8 @@ Each script runs as a single transaction.
 | `012_documents_systems_leader.sql` | Only for the production database: Systems leader as document manager, responsible edits the required documents of its documents. Already in 010 for a new database |
 | `013_notification_events.sql` | Queue of the events notified by e-mail (accounts, department leaders, shift requests, document reviews and responsibles), filled by triggers |
 | `014_approve_past_requests.sql` | A shift request can be approved also after its start (hours worked, approval forgotten); "Add supervisor" also on past hours |
+| `015_stats_for_members.sql` | Stats open to all the active members: `lab_hours` (`admin_hours` kept for the former pages) |
+| `016_leader_task_progress.sql` | The leader of a task (or of its parent) updates started, completed, blocked and note (`leader_set_progress`) |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
 New tables therefore need explicit `grant` statements and Row Level Security policies.
@@ -113,7 +119,9 @@ Code: `supabase/functions/notify/index.ts`. Deployed manually in Supabase > Edge
 The code contains only ASCII characters (`–` for the dash), so that copying it into the dashboard editor cannot
 alter it. To copy it in Windows PowerShell: `Get-Content -Raw -Encoding UTF8 <file> | Set-Clipboard`.
 
-E-mails sent (sender `j2050space@gmail.com`, plain text). The person who caused an event never receives its e-mail.
+E-mails sent (sender `j2050space@gmail.com`, plain text). The person who caused an event never receives its e-mail. Each e-mail links
+directly to its task, shift, shift request or document (`gantt.html#task=ID`, `shifts.html#shift=ID`, `shifts.html#request=ID`,
+`documents.html#doc=ID`); a member who is logged out gets there after the login.
 
 | Area | When | To |
 |---|---|---|

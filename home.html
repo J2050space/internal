@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="only light">
+  <title>J2050 Team Management – Home</title>
+  <script>
+    // Apply the saved theme before the first paint (keys documented in js/theme.js).
+    // The cookie is read first (it is shared across ports); localStorage covers a
+    // cleared cookie jar.
+    const themeCookie = document.cookie.match(/(?:^|;\s*)j2050-theme=(light|dark)(?:;|$)/);
+    let saved = themeCookie ? themeCookie[1] : null;
+    try {
+      saved = saved || localStorage.getItem('j2050-theme');
+    } catch {
+      // Storage unavailable: the cookie still decides.
+    }
+    document.documentElement.dataset.theme =
+      saved === 'dark' || saved === 'light' ? saved
+        : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/gantt.css">
+  <link rel="stylesheet" href="css/documents.css">
+  <link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+  <header id="app-header"></header>
+  <main id="app-main">
+    <h1 id="h-title">Home</h1>
+    <p class="hint" id="h-sub"></p>
+    <div id="h-admin"></div>
+    <section class="home-mine">
+      <h2 class="zone" id="h-zone" hidden>For you</h2>
+      <div class="home-grid" id="h-grid"><p class="hint">Loading…</p></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/home.js"></script>
+</body>
+</html>

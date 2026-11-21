@@ -345,13 +345,13 @@ a.code:hover { text-decoration: underline; color: var(--accent-ink); }
 .mbox label, .mbox .lbl { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
 .mbox input, .mbox select, .mbox textarea { width: 100%; }
 .mbox input:disabled, .mbox select:disabled, .mbox textarea:disabled { color: var(--text); background: var(--surface-2); }
-.ed-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 12px; }
+.ed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
 .ed-grid .span2 { grid-column: span 2; }
 .ed-grid .span3 { grid-column: 1 / -1; }
 .ed-teams { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .ed-teams .pk { display: flex; gap: 4px; align-items: center; color: var(--text); margin: 0; }
 .ed-teams .pk input { width: auto; }
-.ed-deps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ed-deps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 6px; min-height: 26px; align-items: center; }
 .chip { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 999px; padding: 1px 4px 1px 8px; font: 500 0.6875rem var(--mono); background: var(--surface-2); }
 .chip a { color: var(--accent-ink); text-decoration: none; }
