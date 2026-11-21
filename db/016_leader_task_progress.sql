@@ -10,9 +10,11 @@
 -- subtasks: for it only the note can be changed.
 -- Same concurrent-change check as admin_save_task (p_expected); the change
 -- is recorded in task_history by the existing trigger.
+-- Only adds a function: the published site is not affected.
 -- Prerequisite: migrations 001-015 applied.
 -- Run in Supabase > SQL Editor. Runs as one transaction; it can be run
 -- again (create or replace only).
+-- Revert: drop function if exists public.leader_set_progress(bigint, jsonb, timestamptz);
 -- =====================================================================
 begin;
 

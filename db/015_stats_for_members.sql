@@ -4,11 +4,15 @@
 -- by task) is open to every active member, not only to the admins.
 -- The bookings are already visible to everybody on the Lab shifts page:
 -- the totals add no new personal data.
--- public.admin_hours (admins only) is replaced by public.lab_hours
--- (active members), with the same result columns.
+-- public.lab_hours (active members) has the same result columns as
+-- public.admin_hours (admins only). admin_hours is kept, so that the
+-- published site keeps working until the new pages are online; it can be
+-- dropped later (drop function public.admin_hours(date, date);).
+-- Only adds a function: the published site is not affected.
 -- Prerequisite: migrations 001-014 applied.
 -- Run in Supabase > SQL Editor. Runs as one transaction; it can be run
--- again (create or replace, drop if exists).
+-- again (create or replace only).
+-- Revert: drop function if exists public.lab_hours(date, date);
 -- =====================================================================
 begin;
 
@@ -35,7 +39,5 @@ end $$;
 
 revoke execute on function public.lab_hours(date, date) from public, anon;
 grant  execute on function public.lab_hours(date, date) to authenticated;
-
-drop function if exists public.admin_hours(date, date);
 
 commit;

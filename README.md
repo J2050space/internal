@@ -90,7 +90,7 @@ Each script runs as a single transaction.
 | `012_documents_systems_leader.sql` | Only for the production database: Systems leader as document manager, responsible edits the required documents of its documents. Already in 010 for a new database |
 | `013_notification_events.sql` | Queue of the events notified by e-mail (accounts, department leaders, shift requests, document reviews and responsibles), filled by triggers |
 | `014_approve_past_requests.sql` | A shift request can be approved also after its start (hours worked, approval forgotten); "Add supervisor" also on past hours |
-| `015_stats_for_members.sql` | Stats open to all the active members: `lab_hours` replaces `admin_hours` |
+| `015_stats_for_members.sql` | Stats open to all the active members: `lab_hours` (`admin_hours` kept for the former pages) |
 | `016_leader_task_progress.sql` | The leader of a task (or of its parent) updates started, completed, blocked and note (`leader_set_progress`) |
 
 Project settings assumed: "Automatically expose new tables" disabled, "Enable automatic RLS" enabled.
