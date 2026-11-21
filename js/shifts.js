@@ -506,7 +506,7 @@ function openBookingForm(s, userId) {
     <form novalidate>
       ${chooseAdmin ? `<label for="b-user">Admin</label><select id="b-user">${ADMINS.map((a) =>
         `<option value="${a.id}"${a.id === firstFree ? ' selected' : ''}>${esc(a.name)}${esc(bookedText(a))}</option>`).join('')}</select>` : ''}
-      <div class="row" style="grid-template-columns:1fr 1fr">
+      <div class="row" style="grid-template-columns:repeat(2, minmax(0, 1fr))">
         <div><label for="b-from">From</label><select id="b-from">${fromOpts}</select></div>
         <div><label for="b-to">To</label><select id="b-to">${toOpts}</select></div>
       </div>

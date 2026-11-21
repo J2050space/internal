@@ -795,4 +795,7 @@ button.fh:hover:not(:disabled), button.fh[aria-expanded="true"] {
   color: var(--info);
   background: var(--info-bg);
 }
+/* Same colours as the role badges of the header */
+.help-tag.role-admin      { color: var(--accent-ink); background: var(--accent-soft); }
+.help-tag.role-teamleader { color: var(--info); background: var(--info-bg); }
 .help-foot { margin: 14px 0 0; }

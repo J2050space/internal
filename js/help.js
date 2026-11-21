@@ -6,97 +6,127 @@
 //   Value: text, or { 'Start of the label text': text } when one id is used by
 //   several forms with different meanings.
 
-const ADMIN = '<span class="help-tag">Admins</span>';
-const LEAD = '<span class="help-tag">Teamleaders</span>';
+// Tags of the parts reserved to a role, in the colours of the role badges
+const ADMIN = '<span class="help-tag role-admin">Admins</span>';
+const LEAD = '<span class="help-tag role-teamleader">Teamleaders</span>';
 
 /* ====================================================================
    Page guides
+   Same scheme on every page:
+     1. purpose of the page in one or two sentences, and who sees it;
+     2. What you see; 3. Filters and tools; 4. What you can do;
+     5. sections of a role, last, with the tag in the title
+        ("... ${LEAD}", "Administration ${ADMIN}");
+     6. Rules.
+   Role tags only in a title or at the start of an item, never inside a sentence.
+   Terms: "admin", "e-mail", "project plan" for the page (the Gantt is its chart).
    ==================================================================== */
 const PAGES = {
   login: {
     title: 'Log in',
     html: `
-      <p>Log in with your university email (<b>@studenti.unipd.it</b> or <b>@unipd.it</b>) and your password.</p>
+      <p>Access to J2050 Team Management with your university e-mail (<b>@studenti.unipd.it</b> or <b>@unipd.it</b>) and your password.</p>
+      <h3>What you can do</h3>
       <ul>
-        <li><b>Create account</b>: first access. After the confirmation email, log in, enter your name and wait for the approval of an administrator.</li>
-        <li><b>Forgot password?</b>: a link to set a new password is sent by email.</li>
-        <li>A link of the site opened while logged out (e.g. from a notification e-mail) is opened after the login.</li>
-      </ul>`,
+        <li><b>Create account</b>: first access. After the confirmation e-mail, log in, enter your name and wait for the approval of an admin.</li>
+        <li><b>Forgot password?</b>: a link to set a new password is sent by e-mail.</li>
+      </ul>
+      <h3>Rules</h3>
+      <p>A link of the site opened while logged out (e.g. from a notification e-mail) is opened after the login.</p>`,
   },
   register: {
     title: 'Create account',
     html: `
+      <p>First access to the site: create your account, then an admin approves it.</p>
+      <h3>What you can do</h3>
       <ol>
         <li>Enter your <b>@studenti.unipd.it</b> or <b>@unipd.it</b> address and a password of at least 12 characters.</li>
-        <li>Open the link in the confirmation email (check the spam folder).</li>
+        <li>Open the link in the confirmation e-mail (check the spam folder).</li>
         <li>Log in and enter your first and last name.</li>
-        <li>An administrator approves the account: then you can use the site.</li>
+        <li>An admin approves the account and you receive an e-mail: then you can use the site.</li>
       </ol>`,
   },
   forgot: {
     title: 'Forgot password',
-    html: `<p>Enter the address of your account: you receive an email with a link to the page where you choose a new password.
-      The link can be used once. If the email does not arrive, check the spam folder and wait a few minutes before asking again.</p>`,
+    html: `
+      <p>New password for an account whose password you do not remember.</p>
+      <h3>What you can do</h3>
+      <p>Enter the address of your account: you receive an e-mail with a link to the page where you choose a new password.</p>
+      <h3>Rules</h3>
+      <p>The link can be used once. If the e-mail does not arrive, check the spam folder and wait a few minutes before asking again.</p>`,
   },
   reset: {
     title: 'Set new password',
-    html: `<p>This page is opened from the link in the email. Choose a password of at least 12 characters, repeat it and save:
-      you are then logged in with the new password. If the page says the link is not valid, ask for a new one from <i>Forgot password?</i></p>`,
+    html: `
+      <p>Choice of the new password, opened from the link in the e-mail.</p>
+      <h3>What you can do</h3>
+      <p>Choose a password of at least 12 characters, repeat it and save: you are then logged in with the new password.</p>
+      <h3>Rules</h3>
+      <p>If the page says the link is not valid, ask for a new one from <i>Forgot password?</i></p>`,
   },
   welcome: {
     title: 'Welcome',
     html: `
+      <p>First steps of a new account: your name, then the approval of an admin.</p>
+      <h3>What you can do</h3>
       <ol>
-        <li><b>Your name</b>: first and last name as they will be shown to the team (shifts, Gantt, documents).</li>
-        <li><b>Approval</b>: an administrator approves the account and you receive an e-mail. Press <i>Check again</i> to see if it has been approved.</li>
+        <li><b>Your name</b>: first and last name as they will be shown to the team (shifts, project plan, documents).</li>
+        <li><b>Approval</b>: an admin approves the account and you receive an e-mail. Press <i>Check again</i> to see if it has been approved.</li>
       </ol>
-      <p>A <b>disabled</b> account cannot use the site: contact an administrator.</p>`,
+      <h3>Rules</h3>
+      <p>A <b>disabled</b> account cannot use the site: contact an admin.</p>`,
   },
 
   home: {
     title: 'Home',
     html: `
-      <p>What concerns you, on one page. Click an item to open it on its page.</p>
+      <p>Your starting page: what concerns you today, with a link to each item. Every member sees it, with the cards of their role.</p>
+      <h3>What you see</h3>
       <ul>
-        <li>${ADMIN} <b>Waiting for the admins</b>: accounts to approve, shift requests, document versions to approve and to send to ESA.</li>
-        <li><b>My next lab hours</b>: your bookings not yet ended. <b>My shift requests</b>: pending, and decided in the last 14 days.</li>
-        <li><b>My tasks</b>: open tasks of which you are the leader, problems first (blocked, overdue, late start), then by due date.
-          Open one to update its progress.</li>
-        <li><b>My documents</b>: documents of which you are responsible, by next delivery; a returned version shows what to change.</li>
-        <li><b>My lab hours</b>: hours of the ended shifts, as booked (details in Stats).</li>
-      </ul>`,
+        <li>${LEAD} <b>My tasks</b>: open tasks you lead (also the tasks of your department without their own leader,
+          and the subtasks of your tasks). Problems first (blocked, overdue, late start), then by due date.</li>
+        <li>${LEAD} <b>My documents</b>: documents of which you are responsible, by next delivery; a returned version shows what to change.</li>
+        <li><b>My next lab hours</b>: your bookings not yet ended (the first 8).</li>
+        <li><b>My shift requests</b>: pending, and decided in the last 14 days. Shown only when there is one.</li>
+        <li><b>My lab hours</b>: hours of the ended shifts, as booked, in the last 30 days and in total.</li>
+        <li>The number next to a title counts its items. A card with something to act on (a task blocked, overdue or not started
+          in time, a delivery late, a version returned, a request rejected) has its band, icon and number in red.</li>
+      </ul>
+      <h3>What you can do</h3>
+      <ul>
+        <li>Click an item to open it on its page (e.g. a task, to update its progress); the link at the right of a title opens the whole page.</li>
+      </ul>
+      <h3>Administration ${ADMIN}</h3>
+      <p><b>Waiting for the admins</b>, at the top: one number for each thing waiting (accounts to approve, shift requests to approve
+        or reject, document versions to approve or return, approved versions to send to ESA). A number that is not zero is highlighted.</p>`,
   },
 
   shifts: {
     title: 'Lab shifts',
     html: `
+      <p>Booking of the lab: the shifts of two weeks, your bookings and the shift requests. Every member sees it.</p>
       <h3>What you see</h3>
       <ul>
-        <li>Two weeks, Monday to Friday, 08:30–18:30. Each block is a <b>shift</b> in the lab, linked to a task of the Gantt.</li>
-        <li>In a block: <b>seats</b> (highest number booked in a half-hour / capacity), time, a strip with one mark per half hour
+        <li>Two weeks, Monday to Friday, 08:30–18:30. Each block is a <b>shift</b> in the lab, linked to a task of the project plan.</li>
+        <li>In a block: <b>seats</b> (highest number booked in a half hour / capacity), time, a strip with one mark per half hour
           (free, full, without supervisor, yours), task, location, <b>Sup.</b> = supervisors, then the participants.</li>
-        <li>Colours: see the legend above the calendar. Red dashed blocks are <b>shift requests</b> waiting for an administrator.</li>
+        <li>Colours: see the legend above the calendar. Red dashed blocks are <b>shift requests</b> waiting for an admin.</li>
         <li>Shifts outside 08:30–18:30 are listed below the week. On a phone each week is a list.</li>
-      </ul>
-      <h3>Toolbar</h3>
-      <ul>
-        <li>Arrows: previous / next week, <i>This week</i> to come back.</li>
-        <li><i>Free seats only</i>, <i>My shifts only</i>, <i>Show requests</i>: filters. The circular arrow reads the data again.</li>
-      </ul>
-      <h3>Booking a shift</h3>
-      <ul>
-        <li>The address of an open shift or request can be shared: it opens the same shift or request.</li>
-        <li>Click a shift, then <b>Book…</b> and choose from / to: you book only the half hours you need (proposed: all the free half hours from the first one).</li>
-        <li>A half hour can be booked only if it has a <b>supervisor</b> (an administrator) and a <b>free seat</b>.
-          The capacity counts participants per half hour; supervisors are not counted.</li>
-        <li>Until your booking starts: <b>Change my hours…</b> or <b>Cancel my booking</b>.</li>
-      </ul>
-      <h3>Requesting a shift</h3>
-      <ul>
-        <li><b>Request a shift</b> (or click an empty part of a future day): date, hours, work to do.</li>
-        <li>An administrator approves it (the shift is created and you are booked on it) or rejects it with a reason.
-          While it is pending you can <b>Withdraw</b> it.</li>
         <li>Below the calendar: pending requests outside the weeks shown, and requests handled in the last 30 days.</li>
+      </ul>
+      <h3>Filters and tools</h3>
+      <ul>
+        <li>Arrows: previous / next week, <i>This week</i> to come back. The circular arrow reads the data again.</li>
+        <li><i>Free seats only</i>, <i>My shifts only</i>, <i>Show requests</i>: filters.</li>
+        <li>The address of an open shift or request can be shared: it opens the same shift or request.</li>
+      </ul>
+      <h3>What you can do</h3>
+      <ul>
+        <li><b>Book</b>: click a shift, then <b>Book…</b> and choose from / to. You book only the half hours you need
+          (proposed: all the free half hours from the first one).</li>
+        <li>Until your booking starts: <b>Change my hours…</b> or <b>Cancel my booking</b>.</li>
+        <li><b>Request a shift</b> (or click an empty part of a future day): date, hours, work to do. An admin approves it
+          (the shift is created and you are booked on it) or rejects it with a reason. While it is pending you can <b>Withdraw</b> it.</li>
       </ul>
       <h3>Administration ${ADMIN}</h3>
       <ul>
@@ -105,37 +135,35 @@ const PAGES = {
           <b>Join as supervisor…</b>, <b>Add supervisor…</b>, ✕ next to a booking to remove it, <b>Delete shift</b>.</li>
         <li>Remove participants who did not come, also after the shift: Stats counts the booked hours.</li>
         <li><b>Add supervisor…</b> lists all the admins: choosing one already booked changes their hours (e.g. extend
-          them to cover slots without supervisor).
-          It works also after the shift, to record who supervised: to replace a supervisor,
+          them to cover slots without supervisor). It works also after the shift, to record who supervised: to replace a supervisor,
           add the right one, then remove the wrong booking with ✕.</li>
-        <li>Requests: <b>Approve…</b> (you can adjust hours, task and capacity) or <b>Reject</b> with a reason.
+        <li>Requests: <b>Approve…</b> (you can adjust hours, task and capacity) or <b>Reject</b> with a reason (required, sent to the requester).
           A request can be approved also after its start, to record the hours of a member who came to the lab
           but was not approved in time.</li>
+        <li>The number next to <i>Lab shifts</i> in the menu: requests to handle.</li>
       </ul>
       <h3>Rules</h3>
-      <p>Monday to Friday, 08:30–18:30, start and end on :00 or :30, start in the future
-        (except when an admin approves a request after its start).</p>`,
+      <ul>
+        <li>Monday to Friday, 08:30–18:30, start and end on :00 or :30, start in the future
+          (except when an admin approves a request after its start).</li>
+        <li>A half hour can be booked only if it has a <b>supervisor</b> (an admin) and a <b>free seat</b>.
+          The capacity counts participants per half hour; supervisors are not counted.</li>
+      </ul>`,
   },
 
   gantt: {
     title: 'Project plan',
     html: `
-      <h3>Views</h3>
+      <p>Plan of the RedPill project: tasks, dates, leaders and dependencies, with the reviews and the external dates.
+        Every member reads it; task leaders update the progress of their tasks; admins edit it.</p>
+      <h3>What you see</h3>
       <ul>
         <li><b>Gantt</b>: bars on the calendar. <b>Table</b>: all fields in columns. <b>Departments</b>: tasks of one department
           (owner) or in which it takes part (involved), with its leader.</li>
         <li><b>This week</b>: lists for the board meeting (blocked, overdue, deadlines in 7 days, late starts, starts in 7 days).</li>
-        <li><b>Timeline events</b>: fixed external dates (launch, ESA deadlines, exams…), shown as vertical lines. ${ADMIN} edit them in place.</li>
-      </ul>
-      <h3>Counters at the top</h3>
-      <p>Done, in progress, overdue, late start, blocked, at risk, open tasks without a leader, and the days to the next reviews
-        (milestones of the Documents page).</p>
-      <h3>Toolbar</h3>
-      <ul>
-        <li><i>Department</i>: tasks of a department, including those in which it is involved. <i>Search</i>: code, activity, leader, people.
-          <i>My tasks</i>: tasks you lead and their subtasks. Department, <i>Hide done</i> and <i>My tasks</i> are remembered in this browser.</li>
-        <li>− / + zoom; double arrows: expand / collapse all subtasks (or the arrow next to a task); <i>Hide done</i>.</li>
-        <li>Download icon: <i>Export CSV</i> of all tasks, for Excel (separator ;). Circular arrow: reads the data again.</li>
+        <li><b>Timeline events</b>: fixed external dates (launch, ESA deadlines, exams…), shown as vertical lines.</li>
+        <li>Counters at the top: done, in progress, overdue, late start, blocked, at risk, open tasks without a leader, and the days
+          to the next reviews (milestones of the Documents page).</li>
       </ul>
       <h3>Reading the Gantt</h3>
       <ul>
@@ -143,124 +171,166 @@ const PAGES = {
         <li>Diamond = deadline; the dotted segment between the end of the bar and the deadline is the <b>margin</b>.</li>
         <li>Arrows = dependencies; red dashed when a task starts before the end of the task it depends on.</li>
         <li>Vertical lines: today, review milestones (code at the top; hover for the dates) and timeline events.</li>
+        <li>Status, calculated: <b>Planned</b> → <b>Not started (late)</b> if the planned start has passed → <b>In progress</b> when started →
+          <b>Overdue</b> if the planned end has passed → <b>Done</b> when completed. <b>Blocked</b>: set by hand with a reason.
+          <b>At risk</b>: planned end after the deadline, or deadline passed.</li>
       </ul>
-      <h3>Status (calculated)</h3>
+      <h3>Filters and tools</h3>
       <ul>
-        <li><b>Planned</b> → <b>Not started (late)</b> if the planned start has passed → <b>In progress</b> when started →
-          <b>Overdue</b> if the planned end has passed → <b>Done</b> when completed.</li>
-        <li><b>Blocked</b>: set by hand with a reason. <b>At risk</b>: planned end after the deadline, or deadline passed.</li>
+        <li><i>Department</i>: tasks of a department, including those in which it is involved. <i>Search</i>: code, activity, leader, people.
+          <i>My tasks</i>: tasks you lead and their subtasks. <i>Hide done</i>. Department, <i>Hide done</i> and <i>My tasks</i> are remembered in this browser.</li>
+        <li>− / + zoom; double arrows: expand / collapse all subtasks (or the arrow next to a task).</li>
+        <li>Download icon: <i>Export CSV</i> of all tasks, for Excel (separator ;). Circular arrow: reads the data again.</li>
+        <li>The view is in the address (e.g. <span class="mono">gantt.html#table</span>); a task opens with <span class="mono">gantt.html#task=ID</span>.</li>
       </ul>
-      <h3>Codes and leaders</h3>
+      <h3>What you can do</h3>
       <ul>
-        <li>Codes are assigned automatically and never change: <span class="mono">SYS-03</span>, subtasks <span class="mono">SYS-03.2</span>.</li>
-        <li>Leader of a task: the one chosen on the task, otherwise the leader of its department (set in Members), otherwise the leader of the parent task.</li>
+        <li>Click a task to see all its details, its <b>Deliverables</b> (documents it has to produce for a review, linked in
+          Documents › Milestones) and its <i>Change history</i>.</li>
       </ul>
-      <h3>Editing ${ADMIN}</h3>
+      <h3>Progress of your tasks ${LEAD}</h3>
+      <p>The <b>leader of a task</b> (or of its parent task) opens it and updates its progress: <i>Started</i>, <i>Completed</i>
+        (with the dates), <i>Blocked</i> with the reason, and the note. Then <b>Save progress</b>. Dates, leader and dependencies
+        are changed by an admin.</p>
+      <h3>Administration ${ADMIN}</h3>
       <ul>
         <li><b>New task</b>, or click a task to edit it: dates, leader, progress, dependencies, subtasks, <i>Duplicate</i>, <i>Delete…</i>.</li>
         <li><b>Edit timeline</b>: drag a bar to move it (subtasks included), drag its ends to change start or end; Esc cancels;
           <i>Undo</i> appears for 10 seconds after each change.</li>
-        <li>If someone else saved the same task in the meantime, the save is refused: reload and repeat.</li>
-        <li>Every change is recorded: <i>Change history</i> at the bottom of the task.</li>
+        <li><b>Timeline events</b>: edited in place in their view.</li>
       </ul>
-      <h3>Progress ${LEAD}</h3>
-      <p>The <b>leader of a task</b> (or of its parent task) opens it and updates its progress: <i>Started</i>, <i>Completed</i>
-        (with the dates), <i>Blocked</i> with the reason, and the note. Then <b>Save progress</b>. Dates, leader and dependencies
-        are changed by an administrator.</p>
-      <p>The other members see the tasks read only. <b>Deliverables</b> in a task: documents it has to produce for a review,
-        linked in Documents › Milestones.</p>`,
+      <h3>Rules</h3>
+      <ul>
+        <li>Codes are assigned automatically and never change: <span class="mono">SYS-03</span>, subtasks <span class="mono">SYS-03.2</span>.</li>
+        <li>Leader of a task: the one chosen on the task, otherwise the leader of its department (set in Members), otherwise the leader of the parent task.</li>
+        <li>If someone else saved the same task in the meantime, the save is refused: reload and repeat.</li>
+        <li>Every change is recorded in the <i>Change history</i> of the task.</li>
+      </ul>`,
   },
 
   documents: {
     title: 'Documents',
     html: `
-      <p>Register of the project documents (ESA Fly Your Satellite), their versions and what has to be delivered at each review.</p>
-      <h3>File name</h3>
-      <p><span class="mono">[SUBTEAM]_[TYPE]_[Title]_VXX</span>, as in the J2050 Documentation Manual (e.g. <span class="mono">TTC_AREP_LinkBudget_V02</span>).
-        The site shows the name of the version being worked on: use <i>Copy name</i> in the document to name the file.</p>
-      <h3>Views</h3>
+      <p>Register of the project documents (ESA Fly Your Satellite): their versions and what has to be delivered at each review.
+        Every member reads everything; the responsible of a document moves its versions; admins approve them.</p>
+      <h3>What you see</h3>
       <ul>
         <li><b>Register</b>: all documents, status of the last version, responsible and next delivery.</li>
         <li><b>Milestones</b>: documents × reviews. Symbols: ◌ draft, ● release, ⊗ update, AH ad hoc; the colour is the state of the
-          delivery (legend above the table). Bottom row: delivered / required, deliveries without a task, tasks ending late.
-          <i>Only problems</i> keeps the documents with late, close or uncovered deliveries.</li>
+          delivery (legend above the table). Bottom row: delivered / required, deliveries without a task, tasks ending late.</li>
         <li><b>Review</b>: versions waiting for approval, approved versions to send to ESA, ESA changes required, deliveries late or due within 21 days.</li>
         <li>Counters at the top: documents, versions to approve, late deliveries, days to the next data package.</li>
-        <li>Filters: search (name, ESA code, responsible), subteam (also involved), status, <i>My documents</i> (you are responsible). The filters are remembered in this browser; the view is in the address (e.g. <span class="mono">documents.html#milestones</span>).</li>
+        <li>States of a delivery: <i>To deliver</i>, <i>Due soon</i> (21 days), <i>Late</i>, <i>Delivered</i>, <i>Delivered, ESA changes required</i>,
+          <i>Ad hoc</i> (no date), <i>Waived</i>. <b>!</b> = no task of the project plan produces it, or its task ends after the due date.</li>
+        <li>Quick links in the Register and at the top of a document: <b>Edit</b> = working file, <b>PDF</b> = last approved version, <b>Folder</b>.</li>
       </ul>
-      <h3>Versions</h3>
+      <h3>Filters and tools</h3>
+      <ul>
+        <li>Search (name, ESA code, responsible), subteam (also involved), status, <i>My documents</i> (you are responsible),
+          <i>Only problems</i> (Milestones: late, close or uncovered deliveries). The filters are remembered in this browser.</li>
+        <li>The view is in the address (e.g. <span class="mono">documents.html#milestones</span>); a document opens with <span class="mono">documents.html#doc=ID</span>.</li>
+      </ul>
+      <h3>What you can do</h3>
+      <ul>
+        <li>Open a document: its data, versions, milestones at which it is required, and <i>History</i> (every change, with who and when).</li>
+        <li><i>Copy name</i>: the file name of the version being worked on, to name the file.</li>
+      </ul>
+      <h3>Your documents ${LEAD}</h3>
+      <ul>
+        <li><b>New document</b>: you become its responsible.</li>
+        <li>The <b>responsible</b> edits the document, moves its versions and edits its required milestones (click a cell, or + on an empty one);
+          link each delivery to the <b>task of the project plan</b> that produces it.</li>
+      </ul>
       <ol>
         <li><b>Start first version</b>: usually V00; a document already started on SharePoint continues its numbering (e.g. V04 after V03).
           Then <b>Start V01</b>, V02, …: version <i>In progress</i>. You work on the <b>working file</b> (Word, Excel) linked in the document.</li>
         <li>Export the PDF of the version and <b>Submit for review</b> with its link (required): the reviewer checks that PDF. <i>Withdraw</i> brings it back in progress.</li>
-        <li>An administrator <b>Approves</b> it, or <b>Returns</b> it with what has to be changed.</li>
-        <li><b>Mark as sent to ESA</b>: date, link to the copy on the ESA SharePoint, and the milestones this version fulfils.</li>
-        <li><b>ESA outcome</b>: <i>Accepted by ESA</i>, or <i>Changes required</i> with the ESA comments, to address in the next version.</li>
+        <li>An admin <b>approves</b> it, or <b>returns</b> it with what has to be changed.</li>
+        <li><b>Mark as sent to ESA…</b>: date, link to the copy on the ESA SharePoint, and the milestones this version fulfils.</li>
+        <li><b>ESA outcome…</b>: <i>Accepted by ESA</i>, or <i>Changes required</i> with the ESA comments, to address in the next version.</li>
       </ol>
-      <p>An <b>approved</b> version is frozen, also for administrators: its PDF stays as approved. Only the ESA link and comments can still be added. Changes go in the next version: after approving V02, rename the working file to V03 in place (the link stays valid) and start V03. An administrator can <i>Reset</i> a version (recorded in the history) to correct an error.</p>
-      <p>Quick links in the Register and at the top of a document: <b>Edit</b> = working file, <b>PDF</b> = last approved version, <b>Folder</b>.</p>
-      <p>Subteam, type and title are fixed after the first approved version.</p>
-      <h3>Deliveries and Gantt</h3>
+      <h3>Administration ${ADMIN}</h3>
       <ul>
-        <li>Each document can be required at one or more milestones. Due date = <i>data package due</i> of the milestone, or its review date.</li>
-        <li>States: <i>To deliver</i>, <i>Due soon</i> (21 days), <i>Late</i>, <i>Delivered</i>, <i>Delivered, ESA changes required</i>, <i>Ad hoc</i> (no date), <i>Waived</i>.</li>
-        <li>Link each delivery to the <b>task of the Gantt</b> that produces it: <b>!</b> means no task, or a task ending after the due date.</li>
+        <li><b>Approve</b> or <b>Return</b> the versions in review; <i>Reset</i> a released version to correct an error (recorded in the history).</li>
+        <li>With the <b>Systems leader</b> (leader of the SYS department, set in Members): create, edit and delete every document,
+          change the responsible, edit milestones (click the code at the top of a column) and required documents.</li>
+        <li>The number next to <i>Documents</i> in the menu: versions in review.</li>
       </ul>
-      <h3>Who does what</h3>
+      <h3>Rules</h3>
       <ul>
-        <li>Everybody reads everything. The <b>responsible</b> of a document edits it, moves its versions and edits its required milestones (click a cell, or + on an empty one).</li>
-        <li>${LEAD} create documents (they become responsible).</li>
-        <li>The <b>Systems leader</b> (leader of the SYS department, set in Members) and ${ADMIN} create, edit and delete every document,
-          change the responsible and edit milestones (click the code at the top of a column) and required documents.</li>
-        <li>Only ${ADMIN} approve or return versions in review and reset a released version.</li>
-        <li><i>History</i> at the bottom of a document: every change, with who and when.</li>
+        <li>File name <span class="mono">[SUBTEAM]_[TYPE]_[Title]_VXX</span>, as in the J2050 Documentation Manual (e.g. <span class="mono">TTC_AREP_LinkBudget_V02</span>).
+          Subteam, type and title are fixed after the first approved version.</li>
+        <li>An <b>approved</b> version is frozen, also for admins: its PDF stays as approved; only the ESA link and comments can still be added.
+          Changes go in the next version: after approving V02, rename the working file to V03 in place (the link stays valid) and start V03.</li>
+        <li>Due date of a delivery: <i>data package due</i> of the milestone, or its review date.</li>
       </ul>`,
   },
 
   stats: {
     title: 'Stats',
     html: `
-      <p>Hours booked in lab shifts already ended: participants and supervisors. All the members see this page; your row is highlighted and <b>Your hours</b> gives your total in the period.</p>
+      <p>Hours booked in lab shifts already ended, by person and by task: participants and supervisors. Every member sees it.</p>
+      <h3>What you see</h3>
       <ul>
-        <li><b>From / To</b> or the quick periods (last 30 days, this month, all). <b>Department</b>: tasks of that department or in which it is involved.</li>
-        <li><b>By person</b>: hours, of which supervising, number of shifts, main tasks.</li>
+        <li><b>By person</b>: hours, of which supervising, number of shifts, main tasks. Your row is highlighted.</li>
         <li><b>By task</b>: hours per task; the hours of the subtasks are added to their parent task.</li>
         <li><b>Person × task</b>: hours of each person on each task (hover a code for the task name).</li>
+        <li>Counters at the top: period, total hours, people, tasks and <b>Your hours</b> in the period.</li>
+      </ul>
+      <h3>Filters and tools</h3>
+      <ul>
+        <li><b>From / To</b> or the quick periods (last 30 days, this month, all). <b>Department</b>: tasks of that department or in which it is involved.</li>
         <li>Download icon (<b>Export CSV</b>): one row per person, task and role, for Excel.</li>
       </ul>
-      <p>The hours are the booked ones: remove from the shift the participants who did not come (Lab shifts, also after the shift).</p>`,
+      <h3>Rules</h3>
+      <p>The hours are the booked ones: an admin removes from the shift the participants who did not come (Lab shifts, also after the shift).</p>`,
   },
 
   members: {
     title: 'Members',
     html: `
-      <p>Accounts of the team. Only administrators see this page. The number next to <i>Members</i> in the menu: accounts awaiting approval
-        (next to <i>Lab shifts</i>: requests to handle; next to <i>Documents</i>: versions in review).</p>
+      <p>Accounts of the team: approvals, roles and department leaders. Only admins see this page.</p>
+      <h3>What you see</h3>
       <ul>
-        <li><b>Awaiting approval</b>: confirmed email and name entered. <i>Approve</i> to let them in, <i>Reject</i> to disable the account.</li>
-        <li><b>Department leaders</b>: default leader of the tasks of each department in the Gantt (an active teamleader or admin).</li>
-        <li><b>Active members</b>: change the <b>role</b> or <i>Disable</i> the account. <b>Disabled</b>: <i>Re-enable</i>.</li>
-        <li><b>Email not confirmed yet</b>: they never opened the confirmation link. Wrong accounts are deleted in Supabase › Authentication › Users.</li>
+        <li><b>Awaiting approval</b>: confirmed e-mail and name entered.</li>
+        <li><b>Department leaders</b>: default leader of the tasks of each department in the project plan (an active teamleader or admin).</li>
+        <li><b>Active members</b>, <b>Disabled</b>, and <b>E-mail not confirmed yet</b> (they never opened the confirmation link).</li>
+        <li>The number next to <i>Members</i> in the menu: accounts awaiting approval.</li>
+      </ul>
+      <h3>What you can do</h3>
+      <ul>
+        <li><i>Approve</i> an account to let them in, <i>Reject</i> to disable it.</li>
+        <li>Choose the leader of each department (a confirmation is asked: new and former leader receive an e-mail).</li>
+        <li>Change the <b>role</b> of an active member or <i>Disable</i> the account; <i>Re-enable</i> a disabled one.</li>
+        <li>Wrong accounts are deleted in Supabase › Authentication › Users.</li>
       </ul>
       <h3>Roles</h3>
       <ul>
-        <li><b>User</b>: books lab shifts and requests them, reads Gantt and documents.</li>
-        <li><b>Teamleader</b>: as user, can also be leader of a department or task (and updates the progress of its tasks) and responsible of documents, and creates documents. The leader of SYS also manages all documents and the milestones.</li>
-        <li><b>Admin</b>: everything, including approvals, Gantt editing, shifts, milestones and Members.</li>
+        <li><b>User</b>: books lab shifts and requests them, reads the project plan, documents and stats.</li>
+        <li><b>Teamleader</b>: as user; can also be leader of a department or task (and updates the progress of its tasks), and creates documents and is their responsible.
+          The leader of SYS also manages all documents and the milestones.</li>
+        <li><b>Admin</b>: everything, including approvals, project plan editing, shifts, milestones and Members.</li>
       </ul>
-      <p>You cannot change your own account, and at least one active administrator is always kept.</p>`,
+      <h3>Rules</h3>
+      <p>You cannot change your own account, and at least one active admin is always kept.</p>`,
   },
 
   account: {
     title: 'Account',
     html: `
-      <p>Open this page by clicking your name and role at the top right.</p>
+      <p>Your profile and password. Open this page by clicking your name and role at the top right.</p>
+      <h3>What you can do</h3>
       <ul>
-        <li><b>Profile</b>: your first and last name as shown to the team. The email cannot be changed.</li>
+        <li><b>Profile</b>: your first and last name as shown to the team.</li>
         <li><b>Change password</b>: at least 12 characters, typed twice.</li>
-        <li>${ADMIN} <b>E-mails for admins</b>: tick the notices for admins you want to receive, so that each admin
-          follows only their own area (e.g. lab or Gantt). Under each notice: who receives it now. A notice nobody
-          ticks is sent to all the admins. E-mails about your own shifts, tasks and documents always arrive.</li>
+      </ul>
+      <h3>Administration ${ADMIN}</h3>
+      <p><b>E-mails for admins</b>: tick the notices for admins you want to receive, so that each admin
+        follows only their own area (e.g. lab or project plan). Under each notice: who receives it now.</p>
+      <h3>Rules</h3>
+      <ul>
+        <li>The e-mail address cannot be changed.</li>
+        <li>A notice for admins that nobody ticks is sent to all the admins. E-mails about your own shifts, tasks and documents always arrive.</li>
       </ul>`,
   },
 };
@@ -458,7 +528,8 @@ function openGuide() {
       <div class="help-head"><h2 id="help-title">Help – ${page.title}</h2>
         <button type="button" class="secondary" data-help-close aria-label="Close help">✕</button></div>
       ${page.html}
-      <p class="hint help-foot">The <b>?</b> next to a field explains that field.</p>
+      <p class="hint help-foot">The <b>?</b> next to a field explains that field.${page.html.includes('help-tag')
+        ? ` ${LEAD} parts are also for the admins; ${ADMIN} parts only for them.` : ''}</p>
     </div>`;
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
 }

@@ -175,7 +175,7 @@ details.hist summary { cursor: pointer; color: var(--muted); font-size: 0.8125re
 }
 .mbox {
   width: 100%;
-  max-width: 520px;
+  max-width: 600px;
   max-height: 90vh;
   overflow: auto;
   padding: 24px;
@@ -191,9 +191,11 @@ details.hist summary { cursor: pointer; color: var(--muted); font-size: 0.8125re
 .mbox ul.people { margin: 0 0 14px; padding: 0; list-style: none; font-size: 0.8125rem; }
 .mbox ul.people li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); }
 .mbox ul.people button { min-height: 26px; padding: 0 8px; font-size: 0.75rem; }
-.mbox form { display: grid; gap: 6px; }
-.mbox .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.mbox .row > div { display: grid; gap: 4px; }
+/* Fields fill the dialog and never widen it (long task names in the selects) */
+.mbox form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.mbox input:not([type="checkbox"]):not([type="radio"]), .mbox select, .mbox textarea { width: 100%; min-width: 0; }
+.mbox .row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mbox .row > div { display: grid; gap: 4px; min-width: 0; }
 .mbox textarea { min-height: 70px; resize: vertical; }
 .mbox .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .mbox .removal { border: 1px solid color-mix(in srgb, var(--error) 40%, var(--border)); border-radius: var(--radius-sm); padding: 9px; font-size: 0.8125rem; }
