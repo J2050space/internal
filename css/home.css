@@ -1,4 +1,67 @@
 /* Home: personal overview (js/home.js) */
+
+/* Colour of each kind of card (tinted icon, top band, count) */
+:root { --k-violet: #7a5af8; --k-violet-bg: #f4f3ff; }
+:root[data-theme="dark"] { --k-violet: #a48afb; --k-violet-bg: #1e1933; }
+.k-lab      { --k: var(--info);          --k-bg: var(--info-bg); }
+.k-requests { --k: var(--st-latestart);  --k-bg: var(--st-latestart-bg); }
+.k-tasks    { --k: var(--st-progress);   --k-bg: var(--st-progress-bg); }
+.k-docs     { --k: var(--k-violet);      --k-bg: var(--k-violet-bg); }
+.k-hours    { --k: var(--success);       --k-bg: var(--success-bg); }
+.k-admin    { --k: var(--accent);        --k-bg: var(--accent-soft); }
+
+/* Zones: "Waiting for the admins" and "For you" */
+h2.zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 22px 0 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+h2.zone svg { color: var(--accent); }
+
+/* Admin tiles: one number per thing waiting, highlighted when not zero */
+.home-admin {
+  padding: 14px;
+  margin-top: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.home-admin h2.zone { margin: 0 0 10px; color: var(--accent-ink); }
+.todo-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; }
+.todo-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-decoration: none;
+  transition: box-shadow .12s ease;
+}
+.todo-tile:hover { text-decoration: none; box-shadow: 0 0 0 1px var(--accent); }
+.todo-tile b {
+  min-width: 1.6ch;
+  color: var(--muted);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.todo-tile.on { color: var(--text); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), var(--shadow-sm); }
+.todo-tile.on b { color: var(--accent-ink); }
+
+/* Cards */
 .home-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
@@ -6,15 +69,43 @@
   align-items: start;
   margin-top: 14px;
 }
+h2.zone + .home-grid { margin-top: 0; }
 .home-grid .card { margin: 0; }
+.home-card {
+  border-top: 3px solid var(--k);
+  box-shadow: var(--shadow-md);
+}
 .home-card h2 {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 1rem;
 }
+.home-card .k-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--k-bg);
+  color: var(--k);
+}
+.home-card .k-title { flex: 1; min-width: 0; }
+.k-count {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.k-count.alert { background: var(--error-bg); color: var(--error); }
 .home-card h2 .more { font-size: 0.8125rem; font-weight: 500; white-space: nowrap; }
 .home-card .hint { margin: 0; }
 .home-card .foot { margin-top: 10px; }
@@ -40,14 +131,6 @@
   font-variant-numeric: tabular-nums;
 }
 .home-list .bad { color: var(--error); }
-.home-list .n {
-  display: inline-block;
-  min-width: 2.2ch;
-  margin-right: 6px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.home-list .n.zero { color: var(--muted); font-weight: 400; }
 
 .home-kpi { display: flex; flex-wrap: wrap; gap: 8px 28px; list-style: none; margin: 0; padding: 0; }
 .home-kpi li {

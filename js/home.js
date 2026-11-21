@@ -4,6 +4,7 @@
 import { supabase } from './config.js';
 import { initProtectedPage, friendlyError } from './auth.js';
 import { formatDate, formatTime, todayIso } from './format.js';
+import { icon } from './icons.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -24,8 +25,13 @@ function dueText(date) {
   return n < 0 ? `${-n} d late` : n === 0 ? 'today' : `in ${n} d`;
 }
 
-function card(title, body, link) {
-  return `<section class="card home-card"><h2>${title}${link ? `<a class="more" href="${link[0]}">${link[1]}</a>` : ''}</h2>${body}</section>`;
+// Kind of card: colour and icon (css/home.css)
+const KINDS = { lab: 'calendar', requests: 'send', tasks: 'list-checks', docs: 'file-text', hours: 'clock', admin: 'inbox' };
+function card(kind, title, body, { link = null, count = null, alert = false } = {}) {
+  return `<section class="card home-card k-${kind}">
+    <h2><span class="k-icon">${icon(KINDS[kind], 16)}</span><span class="k-title">${title}</span>
+      ${count != null ? `<span class="k-count${alert ? ' alert' : ''}">${count}</span>` : ''}
+      ${link ? `<a class="more" href="${link[0]}">${link[1]} →</a>` : ''}</h2>${body}</section>`;
 }
 const list = (items, empty) => (items.length ? `<ul class="home-list">${items.join('')}</ul>` : `<p class="hint">${empty}</p>`);
 const check = (...results) => { const e = results.find((r) => r.error); if (e) throw e.error; };
@@ -40,13 +46,16 @@ async function adminCard() {
   ]);
   check(req, rev, appr, mem);
   const waiting = mem.data.filter((m) => m.status === 'pending' && m.email_confirmed).length;
-  const row = (n, text, href) => `<li><a href="${href}"><span class="n${n ? '' : ' zero'}">${n}</span>${text}</a></li>`;
-  return card('Waiting for the admins', `<ul class="home-list">
-    ${row(waiting, 'accounts awaiting approval', 'members.html')}
-    ${row(req.count ?? 0, 'shift requests to approve or reject', 'shifts.html')}
-    ${row(rev.count ?? 0, 'document versions to approve or return', 'documents.html#review')}
-    ${row(appr.count ?? 0, 'approved versions to send to ESA', 'documents.html#review')}
-  </ul>`);
+  const tile = (n, text, href) => `<a class="todo-tile${n ? ' on' : ''}" href="${href}"><b>${n}</b><span>${text}</span></a>`;
+  const total = waiting + (req.count ?? 0) + (rev.count ?? 0) + (appr.count ?? 0);
+  return `<section class="home-admin">
+    <h2 class="zone">${icon('inbox', 16)} Waiting for the admins <span class="k-count${total ? ' alert' : ''}">${total}</span></h2>
+    <div class="todo-tiles">
+      ${tile(waiting, 'accounts awaiting approval', 'members.html')}
+      ${tile(req.count ?? 0, 'shift requests to approve or reject', 'shifts.html')}
+      ${tile(rev.count ?? 0, 'versions to approve or return', 'documents.html#review')}
+      ${tile(appr.count ?? 0, 'approved versions to send to ESA', 'documents.html#review')}
+    </div></section>`;
 }
 
 /* ---------- next lab hours ---------- */
@@ -62,8 +71,8 @@ async function bookingsCard() {
       ${task ? `<span class="code">${esc(task.code)}</span> ${esc(task.name)}` : 'Shift'}</a>
       <span class="hint">${b.role === 'supervisor' ? 'Supervisor' : 'Participant'}${b.shifts?.location ? ` · ${esc(b.shifts.location)}` : ''}</span></li>`;
   });
-  return card('My next lab hours', list(items, `No booking. ${ADMIN ? 'Join a shift as supervisor' : 'Book a shift, or request one,'} in Lab shifts.`),
-    ['shifts.html', 'Lab shifts']);
+  return card('lab', 'My next lab hours', list(items, `No booking. ${ADMIN ? 'Join a shift as supervisor' : 'Book a shift, or request one,'} in Lab shifts.`),
+    { link: ['shifts.html', 'Lab shifts'], count: res.data.length });
 }
 
 /* ---------- own shift requests: pending, and decided in the last 14 days ---------- */
@@ -83,7 +92,8 @@ async function requestsCard() {
       ${esc(short(r.description))}</a><span class="st ${cls}">${label}</span>
       ${r.admin_note ? `<span class="hint">Admin: ${esc(r.admin_note)}</span>` : ''}</li>`;
   });
-  return card('My shift requests', list(items, ''), ['shifts.html', 'Lab shifts']);
+  return card('requests', 'My shift requests', list(items, ''),
+    { link: ['shifts.html', 'Lab shifts'], count: rs.length, alert: rs.some((r) => r.status === 'rejected') });
 }
 
 /* ---------- tasks led (same status rule as the Gantt) ---------- */
@@ -105,8 +115,9 @@ async function tasksCard() {
       ${x.blocked ? '<span class="st blocked">Blocked</span>' : ''}<span class="st ${x.status}">${STATUS[x.status]}</span>
       <span class="hint">${x.deadline ? 'Deadline' : 'Planned end'} ${formatDate(x.due)} · <span class="${x.due < TODAY ? 'bad' : ''}">${dueText(x.due)}</span>${x.blocked ? ` · ${esc(x.blocked_reason)}` : ''}</span></li>`);
   const more = open.length > 8 ? `<p class="hint foot">${open.length - 8} more: <a href="gantt.html#table" data-my-tasks>all my tasks</a>.</p>` : '';
-  return card('My tasks', list(items, 'No open task of which you are the leader.') + more +
-    (open.length ? '<p class="hint foot">Open a task to update its progress.</p>' : ''), ['gantt.html#table', 'Project plan']);
+  return card('tasks', 'My tasks', list(items, 'No open task of which you are the leader.') + more +
+    (open.length ? '<p class="hint foot">Open a task to update its progress.</p>' : ''),
+    { link: ['gantt.html#table', 'Project plan'], count: open.length, alert: open.some((x) => x.rank <= RANK.late_start) });
 }
 
 /* ---------- documents of which the user is responsible ---------- */
@@ -140,7 +151,9 @@ async function documentsCard() {
         : 'No delivery due'}</span></li>`;
   });
   const more = docs.length > 8 ? `<p class="hint foot">${docs.length - 8} more in Documents (tick <i>My documents</i>).</p>` : '';
-  return card('My documents', list(items, 'You are not responsible of any document.') + more, ['documents.html#register', 'Documents']);
+  const late = docs.some((doc) => (doc.next && doc.next.due < TODAY) || (doc.last?.status === 'in_progress' && doc.last.review_note));
+  return card('docs', 'My documents', list(items, 'You are not responsible of any document.') + more,
+    { link: ['documents.html#register', 'Documents'], count: docs.length, alert: late });
 }
 
 /* ---------- own lab hours ---------- */
@@ -152,25 +165,27 @@ async function hoursCard() {
   ]);
   check(a, b);
   const own = (rows) => rows.filter((x) => x.user_id === ME).reduce((s, x) => s + Number(x.hours), 0);
-  return card('My lab hours', `<ul class="home-kpi"><li>Last 30 days<b>${h1(own(a.data))} h</b></li><li>Total<b>${h1(own(b.data))} h</b></li></ul>
-    <p class="hint foot">Hours of the shifts already ended, as booked.</p>`, ['stats.html', 'Stats']);
+  return card('hours', 'My lab hours', `<ul class="home-kpi"><li>Last 30 days<b>${h1(own(a.data))} h</b></li><li>Total<b>${h1(own(b.data))} h</b></li></ul>
+    <p class="hint foot">Hours of the shifts already ended, as booked.</p>`, { link: ['stats.html', 'Stats'] });
 }
 
 /* ---------- start ---------- */
 // A card that cannot be read shows its error, the others are shown anyway
-const safe = (title, fn) => fn().catch((err) => card(title, `<p class="message error">${esc(friendlyError(err))}</p>`));
+const safe = (kind, title, fn) => fn().catch((err) => card(kind, title, `<p class="message error">${esc(friendlyError(err))}</p>`));
 
 if (profile) {
   document.getElementById('h-title').textContent = `Hello, ${profile.first_name}`;
-  document.getElementById('h-sub').textContent = `${formatDate(TODAY)} · what concerns you. Click an item to open it.`;
-  const cards = await Promise.all([
-    ADMIN ? safe('Waiting for the admins', adminCard) : '',
-    safe('My next lab hours', bookingsCard),
-    safe('My shift requests', requestsCard),
-    safe('My tasks', tasksCard),
-    safe('My documents', documentsCard),
-    safe('My lab hours', hoursCard),
+  document.getElementById('h-sub').textContent = `${formatDate(TODAY)} – things going on today`;
+  const [admin, ...cards] = await Promise.all([
+    ADMIN ? safe('admin', 'Waiting for the admins', adminCard) : '',
+    safe('tasks', 'My tasks', tasksCard),
+    safe('docs', 'My documents', documentsCard),
+    safe('lab', 'My next lab hours', bookingsCard),
+    safe('requests', 'My shift requests', requestsCard),
+    safe('hours', 'My lab hours', hoursCard),
   ]);
+  document.getElementById('h-admin').innerHTML = admin;
+  document.getElementById('h-zone').hidden = !ADMIN;
   document.getElementById('h-grid').innerHTML = cards.join('');
 }
 
