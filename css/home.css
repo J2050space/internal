@@ -1,14 +1,9 @@
 /* Home: personal overview (js/home.js) */
 
-/* Colour of each kind of card (tinted icon, top band, count) */
-:root { --k-violet: #7a5af8; --k-violet-bg: #f4f3ff; }
-:root[data-theme="dark"] { --k-violet: #a48afb; --k-violet-bg: #1e1933; }
-.k-lab      { --k: var(--info);          --k-bg: var(--info-bg); }
-.k-requests { --k: var(--st-latestart);  --k-bg: var(--st-latestart-bg); }
-.k-tasks    { --k: var(--st-progress);   --k-bg: var(--st-progress-bg); }
-.k-docs     { --k: var(--k-violet);      --k-bg: var(--k-violet-bg); }
-.k-hours    { --k: var(--success);       --k-bg: var(--success-bg); }
-.k-admin    { --k: var(--accent);        --k-bg: var(--accent-soft); }
+/* Colours: the accent (brand) for icons and the admin zone, the same on
+   every card, so that colour never means a category; red, as in the rest
+   of the site, for a card with something late, blocked, returned or
+   rejected. */
 
 /* Zones: "Waiting for the admins" and "For you" */
 h2.zone {
@@ -61,26 +56,34 @@ h2.zone svg { color: var(--accent); }
 .todo-tile.on { color: var(--text); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), var(--shadow-sm); }
 .todo-tile.on b { color: var(--accent-ink); }
 
-/* Cards */
+/* Personal zone */
+.home-mine { margin-top: 14px; }
+.home-mine h2.zone { margin: 22px 0 10px; }
+
+/* Cards: header strip with the icon, body below */
 .home-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
-  gap: 16px;
+  gap: 14px;
   align-items: start;
-  margin-top: 14px;
 }
-h2.zone + .home-grid { margin-top: 0; }
 .home-grid .card { margin: 0; }
 .home-card {
-  border-top: 3px solid var(--k);
+  --pad: 18px;
+  padding: 0 var(--pad) var(--pad);
+  overflow: hidden;
   box-shadow: var(--shadow-md);
 }
+.home-card.attn { border-top: 3px solid var(--error); }
 .home-card h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 12px;
-  font-size: 1rem;
+  margin: 0 calc(-1 * var(--pad)) 12px;
+  padding: 10px var(--pad);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  font-size: 0.9375rem;
 }
 .home-card .k-icon {
   display: inline-grid;
@@ -89,9 +92,11 @@ h2.zone + .home-grid { margin-top: 0; }
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
-  background: var(--k-bg);
-  color: var(--k);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
+.home-card.attn .k-icon { background: var(--error-bg); color: var(--error); }
+@media (max-width: 520px) { .home-card { --pad: 14px; } }
 .home-card .k-title { flex: 1; min-width: 0; }
 .k-count {
   min-width: 22px;

@@ -28,7 +28,7 @@ function dueText(date) {
 // Kind of card: colour and icon (css/home.css)
 const KINDS = { lab: 'calendar', requests: 'send', tasks: 'list-checks', docs: 'file-text', hours: 'clock', admin: 'inbox' };
 function card(kind, title, body, { link = null, count = null, alert = false } = {}) {
-  return `<section class="card home-card k-${kind}">
+  return `<section class="card home-card k-${kind}${alert ? ' attn' : ''}">
     <h2><span class="k-icon">${icon(KINDS[kind], 16)}</span><span class="k-title">${title}</span>
       ${count != null ? `<span class="k-count${alert ? ' alert' : ''}">${count}</span>` : ''}
       ${link ? `<a class="more" href="${link[0]}">${link[1]} →</a>` : ''}</h2>${body}</section>`;
